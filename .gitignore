@@ -1,0 +1,28 @@
+
+# Neovim runtime files (generated on boot)
+.local/
+.cache/
+.state/
+
+# Lazy.nvim plugin manager and Mason downloads
+~/.local/share/nvim/
+~/.local/state/nvim/
+~/.cache/nvim/
+
+# Backup/swap files
+*.swp
+*.swo
+*.bak
+
+# Lazygit or GitUI history (if used)
+lazygit.log
+gitui.log
+
+# Neovim upstream starter (not tracked intentionally)
+.config/nvim-upstream/
+.config/nvim/.neoconf.json
+.config/nvim/lazyvim.json
+
+# Optional: Python virtual envs, Node modules, etc.
+venv/
+node_modules/
