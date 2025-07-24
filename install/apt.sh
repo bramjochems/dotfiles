@@ -13,7 +13,9 @@ sudo apt install -y \
   curl \
   ripgrep \
   fd-find \
-  tmux
+  tmux \
+  starship \
+  fzf
 
 # Symlink fd -> fdfind if not already present
 if ! command -v fd >/dev/null 2>&1; then
