@@ -12,7 +12,7 @@ return {
     },
   },
   opts = {
-    enabled = true,
+    enabled = false,
     execution_message = {
       message = function()
         return "💾 saved at " .. vim.fn.strftime("%H:%M:%S")

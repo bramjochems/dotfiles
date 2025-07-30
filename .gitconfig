@@ -1,0 +1,9 @@
+[credential]
+	helper = /mnt/c/Program\\ Files/Git/mingw64/bin/git-credential-manager.exe
+[credential "https://dev.azure.com"]
+	useHttpPath = true
+[user]
+	name = Bram Jochems
+	email = bram@riskatwork.nl
+[init]
+	defaultBranch = main

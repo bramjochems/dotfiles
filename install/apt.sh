@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+echo "Adding repository for git"
+sudo add-apt-repository ppa:git-core/ppa
+
 echo "🔄 Updating package list..."
 sudo apt update
 
@@ -9,6 +12,7 @@ sudo apt upgrade -y
 
 echo "📦 Installing packages..."
 sudo apt install -y \
+  git \
   jq \
   curl \
   ripgrep \

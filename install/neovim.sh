@@ -28,7 +28,8 @@ sudo apt install -y \
   curl \
   unzip \
   build-essential \
-  python3-pip
+  python3-pip \
+  zenity
 
 # Ensure fd is available as `fd`
 if ! command -v fd >/dev/null 2>&1; then
