@@ -4,27 +4,27 @@ return {
   config = true,
   opts = {
     terminal_cmd = "claude",
-  },
-  terminal = {
-    split_side = "right", -- "left" or "right"
-    split_width_percentage = 0.30,
-    provider = "auto", -- "auto", "snacks", "native", or custom provider table
-    auto_close = true,
-    snacks_win_opts = {}, -- Opts to pass to `Snacks.terminal.open()` - see Floating Window section below
-  },
-
-  -- Diff Integration
-  diff_opts = {
-    auto_close_on_accept = true,
-    vertical_split = true,
-    open_in_current_tab = false,
+    terminal = {
+      provider = "snacks",
+      snacks_win_opts = {
+        position = "right",
+        width = 0.4,
+        -- height = 0.9,
+        title = "Claude Code",
+        title_pos = "center",
+        border = "rounded",
+      },
+    },
+    diff_opts = {
+      auto_close_on_accept = true,
+      vertical_split = true,
+      open_in_current_tab = false,
+    },
   },
   keys = {
-    -- Claude in sidebar
-    { "<leader>ac", "<cmd>ClaudeCode<cr>", desc = "Claude Sidebar" },
-
     -- Claude in floating window
-    { "<leader>af", "<cmd>ClaudeCodeFocus<cr>", desc = "Claude Float" },
+    { "<leader>ac", "<cmd>ClaudeCode<cr>", desc = "Claude Code" },
+    { "<leader>af", "<cmd>ClaudeCodeFocus<cr>", desc = "Claude Focus" },
 
     -- File operations
     { "<leader>ab", "<cmd>ClaudeCodeAdd %<cr>", desc = "Add current buffer" },
