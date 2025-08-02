@@ -1,4 +1,4 @@
-return {
+return (vim.g.vscode and {}) or {
   "olimorris/codecompanion.nvim",
   keys = {
     { "<leader>aq", "<cmd>CodeCompanionChat<cr>", desc = "AI Question" },

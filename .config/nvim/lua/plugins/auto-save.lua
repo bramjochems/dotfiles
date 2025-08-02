@@ -1,4 +1,4 @@
-return {
+return (vim.g.vscode and {}) or {
   "pocco81/auto-save.nvim",
   event = { "InsertLeave", "VimLeavePre" },
   keys = {

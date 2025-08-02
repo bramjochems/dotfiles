@@ -1,4 +1,4 @@
-return {
+return (vim.g.vscode and {}) or {
   "coder/claudecode.nvim",
   dependencies = { "folke/snacks.nvim" },
   config = true,

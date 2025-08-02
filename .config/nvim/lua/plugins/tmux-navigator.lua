@@ -1,4 +1,4 @@
-return {
+return (vim.g.vscode and {}) or {
   "christoomey/vim-tmux-navigator",
   lazy = false,
 
