@@ -19,7 +19,8 @@ sudo apt install -y \
   fd-find \
   tmux \
   starship \
-  fzf
+  fzf \
+  rsync
 
 # Symlink fd -> fdfind if not already present
 if ! command -v fd >/dev/null 2>&1; then

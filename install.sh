@@ -55,11 +55,18 @@ if [[ -x "$DOTFILES_DIR/install/apt.sh" ]]; then
   "$DOTFILES_DIR/install/apt.sh"
 fi
 
-# Lazygit install
+# Bitwarden CLI install
 if [[ -x "$DOTFILES_DIR/install/bitwarden-cli.sh" ]]; then
   "$DOTFILES_DIR/install/bitwarden-cli.sh"
 else
   echo "⚠️  Bitwarden cli install script not found or not executable"
+fi
+
+# Azure Functions Core Tools install
+if [[ -x "$DOTFILES_DIR/install/azure-functions-core-tools.sh" ]]; then
+  "$DOTFILES_DIR/install/azure-functions-core-tools.sh"
+else
+  echo "⚠️  Azure Functions Core Tools install script not found or not executable"
 fi
 
 # Add more install scripts below
