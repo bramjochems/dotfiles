@@ -25,7 +25,9 @@ link ".bash_profile" "$HOME/.bash_profile"
 link ".tmux.conf" "$HOME/.tmux.conf"
 link ".editorconfig" "$HOME/.editorconfig"
 link "./scripts/bw-auto-auth.sh" "$HOME/.local/bin/bw-auto-auth"
-link ".gitconfig" "$HOME:/.gitconfig"
+link ".gitconfig" "$HOME/.gitconfig"
+link ".gitignore_global" "$HOME/.gitignore_global"
+link ".gitmessage" "$HOME/.gitmessage"
 
 # .config files and directories
 mkdir -p "$HOME/.config"

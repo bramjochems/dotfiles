@@ -7,3 +7,7 @@
 	email = bram@riskatwork.nl
 [init]
 	defaultBranch = main
+[core]
+	excludesfile = ~/.gitignore_global
+[commit]
+	template = ~/.gitmessage
