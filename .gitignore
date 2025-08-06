@@ -23,6 +23,9 @@ gitui.log
 .config/nvim/.neoconf.json
 .config/nvim/lazyvim.json
 
+# Environment variables with secrets
+.env
+
 # Optional: Python virtual envs, Node modules, etc.
 venv/
 node_modules/

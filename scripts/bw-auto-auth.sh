@@ -4,8 +4,13 @@
 
 set -e
 
+# Load environment variables if .env exists
+if [ -f "$HOME/dotfiles/.env" ]; then
+    source "$HOME/dotfiles/.env"
+fi
+
 SESSION_FILE="$HOME/.cache/bw-session"
-SERVER_URL="https://vault.bitwarden.com"
+SERVER_URL="${BITWARDEN_SERVER_URL:-https://vault.bitwarden.com}"
 
 # Ensure cache directory exists
 mkdir -p "$(dirname "$SESSION_FILE")"

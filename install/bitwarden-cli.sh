@@ -43,9 +43,10 @@ if command -v bw &>/dev/null; then
 
   echo ""
   echo "🔧 Next steps:"
-  echo "   1. Configure your server: bw config server $BITWARDEN_SERVER_URL"
-  echo "   2. Login to your vault: bw login"
-  echo "   3. Test access: bw status"
+  echo "   1. Copy .env.example to .env and configure your server URL"
+  echo "   2. Configure your server: bw config server \$BITWARDEN_SERVER_URL"
+  echo "   3. Login to your vault: bw login"
+  echo "   4. Test access: bw status"
 else
   echo "❌ Installation failed - bw command not found"
   exit 1
