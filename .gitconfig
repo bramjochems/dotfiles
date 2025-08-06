@@ -11,3 +11,7 @@
 	excludesfile = ~/.gitignore_global
 [commit]
 	template = ~/.gitmessage
+[diff]
+    tool = nvimdiff
+[difftool "nvimdiff"]
+    cmd = nvim -d $LOCAL $REMOTE -c 'wincmd l' -c 'wincmd ='

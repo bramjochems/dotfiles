@@ -8,6 +8,14 @@ return (vim.g.vscode and {})
             hidden = true,
             ignored = true,
           },
+          grep = {
+            hidden = true,
+            ignored = true,
+          },
+          files = {
+            hidden = true,
+            ignored = true,
+          },
         },
       },
     },
