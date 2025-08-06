@@ -1,42 +1,42 @@
 return {
-  {
-    "linux-cultist/venv-selector.nvim",
-    enabled = true,
-    cmd = { "VenvSelect", "VenvSelectCached" }, -- ensure command works even before plugin loads
-    keys = {
-      { "<leader>cv", "<cmd>VenvSelect<cr>", desc = "Select Python Virtualenv" },
-    },
-    ft = "python", -- still optimize loading on python files
-    opts = {
-      name = ".venv",
-      search = true,
-      auto_refresh = true,
-    },
-    config = function(_, opts)
-      local venv_selector = require("venv-selector")
-      venv_selector.setup(opts)
-
-      vim.api.nvim_create_autocmd("User", {
-        pattern = "VenvSelectActivated",
-        callback = function()
-          local venv = venv_selector.get_active_venv()
-          if not venv then
-            return
-          end
-          local python_bin = venv .. "/bin/python"
-
-          -- 🔹 Update Pyright dynamically
-          for _, client in pairs(vim.lsp.get_clients()) do
-            if client.name == "pyright" then
-              local new_settings = vim.tbl_deep_extend("force", client.config.settings or {}, {
-                python = { pythonPath = python_bin },
-              })
-              client.notify("workspace/didChangeConfiguration", { settings = new_settings })
-              vim.notify("Pyright now using: " .. python_bin, vim.log.levels.INFO)
-            end
-          end
-        end,
-      })
-    end,
-  },
+  --   {
+  --     "linux-cultist/venv-selector.nvim",
+  --     enabled = true,
+  --     cmd = { "VenvSelect", "VenvSelectCached" }, -- ensure command works even before plugin loads
+  --     keys = {
+  --       { "<leader>cv", "<cmd>VenvSelect<cr>", desc = "Select Python Virtualenv" },
+  --     },
+  --     ft = "python", -- still optimize loading on python files
+  --     opts = {
+  --       name = ".venv",
+  --       search = true,
+  --       auto_refresh = true,
+  --     },
+  --     -- config = function(_, opts)
+  --     --   local venv_selector = require("venv-selector")
+  --     --   venv_selector.setup(opts)
+  --     --
+  --     --   vim.api.nvim_create_autocmd("User", {
+  --     --     pattern = "VenvSelectActivated",
+  --     --     callback = function()
+  --     --       local venv = venv_selector.get_active_venv()
+  --     --       if not venv then
+  --     --         return
+  --     --       end
+  --     --       local python_bin = venv .. "/bin/python"
+  --     --
+  --     --       -- 🔹 Update Pyright dynamically
+  --     --       for _, client in pairs(vim.lsp.get_clients()) do
+  --     --         if client.name == "pyright" then
+  --     --           local new_settings = vim.tbl_deep_extend("force", client.config.settings or {}, {
+  --     --             python = { pythonPath = python_bin },
+  --     --           })
+  --     --           client.notify("workspace/didChangeConfiguration", { settings = new_settings })
+  --     --           vim.notify("Pyright now using: " .. python_bin, vim.log.levels.INFO)
+  --     --         end
+  --     --       end
+  --     --     end,
+  --     --   })
+  --     -- end,
+  --   },
 }
