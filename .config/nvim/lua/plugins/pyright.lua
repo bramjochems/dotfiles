@@ -68,34 +68,6 @@ return {
       return nil, nil
     end
 
-    local function setup_keymaps(client, bufnr)
-      -- Delegate to LazyVim defaults if available
-      local ok, lazyvim_lsp = pcall(require, "lazyvim.plugins.lsp.keymaps")
-      if ok and lazyvim_lsp.on_attach then
-        lazyvim_lsp.on_attach(client, bufnr)
-        return
-      end
-
-      -- Minimal fallbacks
-      local function map(mode, lhs, rhs, desc)
-        vim.keymap.set(mode, lhs, rhs, { buffer = bufnr, desc = desc })
-      end
-      map("n", "gd", vim.lsp.buf.definition, "Go to Definition")
-      map("n", "gr", vim.lsp.buf.references, "References")
-      map("n", "gD", vim.lsp.buf.declaration, "Go to Declaration")
-      map("n", "gI", vim.lsp.buf.implementation, "Go to Implementation")
-      map("n", "gy", vim.lsp.buf.type_definition, "Go to Type Definition")
-      map("n", "K", vim.lsp.buf.hover, "Hover")
-      map("n", "<leader>cr", vim.lsp.buf.rename, "Rename")
-      map({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, "Code Action")
-      if client.supports_method("textDocument/formatting") then
-        map("n", "<leader>cf", function()
-          vim.lsp.buf.format({ bufnr = bufnr })
-        end, "Format")
-      end
-      vim.bo[bufnr].omnifunc = "v:lua.vim.lsp.omnifunc"
-    end
-
     local function capabilities()
       local ok, cmp_lsp = pcall(require, "cmp_nvim_lsp")
       local caps = ok and cmp_lsp.default_capabilities() or vim.lsp.protocol.make_client_capabilities()
@@ -127,7 +99,7 @@ return {
         filetypes = { "python" },
         single_file_support = false,
         capabilities = capabilities(),
-        on_attach = setup_keymaps,
+        on_attach = require("lazyvim.plugins.lsp.keymaps").on_attach,
       }
 
       if server == "pyright" then
