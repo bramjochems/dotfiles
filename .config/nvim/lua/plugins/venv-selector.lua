@@ -1,17 +1,17 @@
 return {
-  --   {
-  --     "linux-cultist/venv-selector.nvim",
-  --     enabled = true,
-  --     cmd = { "VenvSelect", "VenvSelectCached" }, -- ensure command works even before plugin loads
-  --     keys = {
-  --       { "<leader>cv", "<cmd>VenvSelect<cr>", desc = "Select Python Virtualenv" },
-  --     },
-  --     ft = "python", -- still optimize loading on python files
-  --     opts = {
-  --       name = ".venv",
-  --       search = true,
-  --       auto_refresh = true,
-  --     },
+  -- {
+  --   "linux-cultist/venv-selector.nvim",
+  --   enabled = true,
+  --   cmd = { "VenvSelect", "VenvSelectCached" }, -- ensure command works even before plugin loads
+  --   keys = {
+  --     { "<leader>cv", "<cmd>VenvSelect<cr>", desc = "Select Python Virtualenv" },
+  --   },
+  --   ft = "python", -- still optimize loading on python files
+  --   opts = {
+  --     name = ".venv",
+  --     search = true,
+  --     auto_refresh = true,
+  --   },
   --     -- config = function(_, opts)
   --     --   local venv_selector = require("venv-selector")
   --     --   venv_selector.setup(opts)
@@ -38,5 +38,5 @@ return {
   --     --     end,
   --     --   })
   --     -- end,
-  --   },
+  -- },
 }
