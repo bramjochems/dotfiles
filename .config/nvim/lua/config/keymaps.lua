@@ -37,10 +37,8 @@ vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv") -- move selected block up
 
 -- Use black hole register for deletes, so they don’t clobber your clipboard
 vim.keymap.set("n", "d", '"_d', { noremap = true, desc = "Delete without yanking" })
-vim.keymap.set("n", "c", '"_c', { noremap = true, desc = "Change without yanking" })
 vim.keymap.set("n", "x", '"_x', { noremap = true, desc = "Delete char without yanking" })
 
 -- Same for visual mode
 vim.keymap.set("v", "d", '"_d', { noremap = true, desc = "Delete without yanking" })
-vim.keymap.set("v", "c", '"_c', { noremap = true, desc = "Change without yanking" })
 vim.keymap.set("v", "x", '"_x', { noremap = true, desc = "Delete char without yanking" })

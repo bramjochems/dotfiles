@@ -119,28 +119,32 @@ config.keys = {
 config.hyperlink_rules = wezterm.default_hyperlink_rules()
 
 -- Platform-specific browser opener
-wezterm.on('open-uri', function(window, pane, uri)
+wezterm.on("open-uri", function(window, pane, uri)
   local is_wsl = os.getenv("WSL_DISTRO_NAME") ~= nil or os.getenv("WSLENV") ~= nil
-  
+
   if is_wsl then
     -- In WSL, use Windows browser via cmd.exe
     local success, exit_code, stdout, stderr = wezterm.run_child_process({
-      "powershell.exe", "-Command", 
-      "Start-Process", "-FilePath", uri
+      "powershell.exe",
+      "-Command",
+      "Start-Process",
+      "-FilePath",
+      uri,
     })
     if success then
-      return false  -- Prevent default handling
+      return false -- Prevent default handling
     end
   else
     -- On native Linux, use xdg-open
     local success, exit_code, stdout, stderr = wezterm.run_child_process({
-      "xdg-open", uri
+      "xdg-open",
+      uri,
     })
     if success then
-      return false  -- Prevent default handling
+      return false -- Prevent default handling
     end
   end
-  
+
   -- If our custom handling fails, return true to allow default behavior
   return true
 end)
