@@ -71,6 +71,13 @@ else
   echo "⚠️  Azure Functions Core Tools install script not found or not executable"
 fi
 
+# Google Cloud CLI install
+if [[ -x "$DOTFILES_DIR/install/google-cloud-cli.sh" ]]; then
+  "$DOTFILES_DIR/install/google-cloud-cli.sh"
+else
+  echo "⚠️  Google Cloud CLI install script not found or not executable"
+fi
+
 # Add more install scripts below
 # "$DOTFILES_DIR/install/neovim.sh"
 # "$DOTFILES_DIR/install/tmux.sh"
