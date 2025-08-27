@@ -78,6 +78,13 @@ else
   echo "⚠️  Google Cloud CLI install script not found or not executable"
 fi
 
+# GitHub CLI install
+if [[ -x "$DOTFILES_DIR/install/github-cli.sh" ]]; then
+  "$DOTFILES_DIR/install/github-cli.sh"
+else
+  echo "⚠️  GitHub CLI install script not found or not executable"
+fi
+
 # Add more install scripts below
 # "$DOTFILES_DIR/install/neovim.sh"
 # "$DOTFILES_DIR/install/tmux.sh"
