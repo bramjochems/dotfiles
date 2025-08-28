@@ -85,6 +85,27 @@ else
   echo "⚠️  GitHub CLI install script not found or not executable"
 fi
 
+# Claude Code install
+if [[ -x "$DOTFILES_DIR/install/claude-code.sh" ]]; then
+  "$DOTFILES_DIR/install/claude-code.sh"
+else
+  echo "⚠️  Claude Code install script not found or not executable"
+fi
+
+# Codex CLI install
+if [[ -x "$DOTFILES_DIR/install/codex-cli.sh" ]]; then
+  "$DOTFILES_DIR/install/codex-cli.sh"
+else
+  echo "⚠️  Codex CLI install script not found or not executable"
+fi
+
+# OpenCode.ai (SST) install
+if [[ -x "$DOTFILES_DIR/install/opencode-ai.sh" ]]; then
+  "$DOTFILES_DIR/install/opencode-ai.sh"
+else
+  echo "⚠️  OpenCode.ai (SST) install script not found or not executable"
+fi
+
 # Add more install scripts below
 # "$DOTFILES_DIR/install/neovim.sh"
 # "$DOTFILES_DIR/install/tmux.sh"
