@@ -6,6 +6,8 @@ case $- in
 *) return ;;
 esac
 
+bind 'set enable-bracketed-paste on'
+
 # Prompt color support
 case "$TERM" in
 xterm-color | *-256color) color_prompt=yes ;;

@@ -1,21 +1,38 @@
--- ~/.config/nvim/lua/plugins/pyright.lua
 return {
   "neovim/nvim-lspconfig",
   opts = {
     servers = {
-      -- We'll manage these manually
       pyright = false,
       ruff = false,
     },
   },
   config = function()
-    -- Prefer .git for project root, then LSP, then cwd (LazyVim respects this)
+    -- Prefer .git over LSP root to avoid LazyVim overriding cwd in mono-repos
     vim.g.root_spec = { { ".git", "lua" }, "lsp", "cwd" }
 
-    -- Track running clients by "<server>:<root_dir>"
-    local clients = {}
-    -- Track which clients are attached to which buffers: buffer_attachments[bufnr][client_key] = client_id
-    local buffer_attachments = {}
+    local DEBUG = false
+    local function log(msg, lvl)
+      if DEBUG then
+        vim.notify(msg, lvl or vim.log.levels.INFO)
+      end
+    end
+
+    local is_windows = vim.loop.os_uname().version:match("Windows")
+    local function venv_python(root)
+      if is_windows then
+        local p = root .. "/.venv/Scripts/python.exe"
+        return (vim.fn.executable(p) == 1) and p or nil
+      else
+        local p = root .. "/.venv/bin/python"
+        return (vim.fn.executable(p) == 1) and p or nil
+      end
+    end
+
+    -- Cache root -> python for this session
+    local python_cache = {}
+
+    local clients = {} -- key: "<server>:<root>" -> client
+    local buffer_attachments = {} -- bufnr -> { [client_key]=client_id }
 
     local function get_root_and_python(fname)
       local path = vim.fs.dirname(fname)
@@ -24,45 +41,50 @@ return {
       local pyright_config = vim.fs.find("pyrightconfig.json", { upward = true, path = path })[1]
       if pyright_config then
         local root = vim.fs.dirname(pyright_config)
-        local py = vim.fs.joinpath(root, ".venv", "bin", "python")
-        return root, (vim.fn.executable(py) == 1 and py or nil)
+        python_cache[root] = python_cache[root] or venv_python(root)
+        return root, python_cache[root]
       end
 
       -- 2) pyproject.toml
       local pyproject = vim.fs.find("pyproject.toml", { upward = true, path = path })[1]
       if pyproject then
         local root = vim.fs.dirname(pyproject)
-        local py = vim.fs.joinpath(root, ".venv", "bin", "python")
-        return root, (vim.fn.executable(py) == 1 and py or nil)
+        python_cache[root] = python_cache[root] or venv_python(root)
+        return root, python_cache[root]
       end
 
-      -- 3) ruff.{toml} / .ruff.toml
+      -- 3) ruff.toml / .ruff.toml
       local ruff_config = vim.fs.find({ "ruff.toml", ".ruff.toml" }, { upward = true, path = path })[1]
       if ruff_config then
         local root = vim.fs.dirname(ruff_config)
-        local py = vim.fs.joinpath(root, ".venv", "bin", "python")
-        return root, (vim.fn.executable(py) == 1 and py or nil)
+        python_cache[root] = python_cache[root] or venv_python(root)
+        return root, python_cache[root]
       end
 
-      -- 4) climb until a directory that contains .venv/bin/python
+      -- 4) climb until a directory that contains .venv python
       local function has_venv(dir)
-        local st = vim.uv.fs_stat(dir .. "/.venv/bin/python")
-        return st and st.type == "file"
+        if is_windows then
+          local st = vim.uv.fs_stat(dir .. "/.venv/Scripts/python.exe")
+          return st and st.type == "file"
+        else
+          local st = vim.uv.fs_stat(dir .. "/.venv/bin/python")
+          return st and st.type == "file"
+        end
       end
       local venv_root = vim.fs.find(function(_, dir)
         return has_venv(dir)
       end, { upward = true, path = path })[1]
       if venv_root then
-        local py = vim.fs.joinpath(venv_root, ".venv", "bin", "python")
-        return venv_root, py
+        python_cache[venv_root] = python_cache[venv_root] or venv_python(venv_root)
+        return venv_root, python_cache[venv_root]
       end
 
-      -- 5) fallback: .git root
+      -- 5) fallback: .git
       local git_dir = vim.fs.find(".git", { upward = true, path = path })[1]
       if git_dir then
         local root = vim.fs.dirname(git_dir)
-        local py = vim.fs.joinpath(root, ".venv", "bin", "python")
-        return root, (vim.fn.executable(py) == 1 and py or nil)
+        python_cache[root] = python_cache[root] or venv_python(root)
+        return root, python_cache[root]
       end
 
       return nil, nil
@@ -70,25 +92,29 @@ return {
 
     local function capabilities()
       local ok, cmp_lsp = pcall(require, "cmp_nvim_lsp")
-      local caps = ok and cmp_lsp.default_capabilities() or vim.lsp.protocol.make_client_capabilities()
-      -- Encourage consistent encoding between pyright(UTF-16) and ruff
-      caps.general = caps.general or {}
-      caps.general.positionEncodings = { "utf-16", "utf-8" }
-      return caps
+      return ok and cmp_lsp.default_capabilities() or vim.lsp.protocol.make_client_capabilities()
+    end
+
+    local lazy_on_attach = function(client, bufnr)
+      local ok, keymaps = pcall(require, "lazyvim.plugins.lsp.keymaps")
+      if ok and keymaps.on_attach then
+        keymaps.on_attach(client, bufnr)
+      end
+    end
+
+    local function can_exec(bin)
+      return vim.fn.executable(bin) == 1
     end
 
     local function start_python_lsp(server, bufnr, root_dir, python_path)
       local client_key = server .. ":" .. root_dir
 
-      -- Reuse existing client if present
       if clients[client_key] and not clients[client_key].is_stopped() then
         vim.lsp.buf_attach_client(bufnr, clients[client_key].id)
         buffer_attachments[bufnr] = buffer_attachments[bufnr] or {}
         buffer_attachments[bufnr][client_key] = clients[client_key].id
         return
       end
-
-      -- Remove tombstone
       if clients[client_key] and clients[client_key].is_stopped() then
         clients[client_key] = nil
       end
@@ -99,14 +125,18 @@ return {
         filetypes = { "python" },
         single_file_support = false,
         capabilities = capabilities(),
-        on_attach = require("lazyvim.plugins.lsp.keymaps").on_attach,
+        on_attach = lazy_on_attach,
       }
 
       if server == "pyright" then
+        if not can_exec("pyright-langserver") then
+          log("pyright-langserver not found on PATH, skipping", vim.log.levels.WARN)
+          return
+        end
         cfg.cmd = { "pyright-langserver", "--stdio" }
         cfg.settings = {
           python = {
-            pythonPath = python_path,
+            pythonPath = python_path or "python",
             analysis = {
               autoSearchPaths = true,
               useLibraryCodeForTypes = true,
@@ -115,22 +145,24 @@ return {
           },
         }
       elseif server == "ruff" then
+        -- You can switch to ruff-lsp by using cmd = { "ruff-lsp" } if you prefer.
+        if not can_exec("ruff") then
+          log("ruff not found on PATH, skipping", vim.log.levels.WARN)
+          return
+        end
         cfg.cmd = { "ruff", "server", "--preview" }
-        cfg.init_options = {
-          settings = {
-            interpreter = { python_path or "python" },
-          },
-        }
+        cfg.init_options = { settings = { interpreter = { python_path or "python" } } }
       end
 
-      local client_id = vim.lsp.start(cfg, { bufnr = bufnr })
-      if client_id then
-        local client = vim.lsp.get_client_by_id(client_id)
+      local id = vim.lsp.start(cfg, { bufnr = bufnr })
+      if id then
+        local client = vim.lsp.get_client_by_id(id)
         clients[client_key] = client
         buffer_attachments[bufnr] = buffer_attachments[bufnr] or {}
-        buffer_attachments[bufnr][client_key] = client_id
-        local py_info = python_path and (" (Python: " .. python_path .. ")") or ""
-        vim.notify("Started " .. cfg.name .. " for " .. root_dir .. py_info, vim.log.levels.INFO)
+        buffer_attachments[bufnr][client_key] = id
+        log(
+          ("Started %s for %s%s"):format(cfg.name, root_dir, python_path and (" (python: " .. python_path .. ")") or "")
+        )
       end
     end
 
@@ -146,7 +178,7 @@ return {
 
       local root_dir, python_path = get_root_and_python(fname)
       if not root_dir then
-        vim.notify("No Python project root found for: " .. fname, vim.log.levels.WARN)
+        log("No Python project root for " .. fname, vim.log.levels.WARN)
         return
       end
 
@@ -154,7 +186,6 @@ return {
       start_python_lsp("ruff", bufnr, root_dir, python_path)
     end
 
-    -- Attach on Python buffer enter
     vim.api.nvim_create_autocmd("BufEnter", {
       pattern = "*.py",
       callback = function(args)
@@ -162,7 +193,6 @@ return {
       end,
     })
 
-    -- Cleanup when buffers go away
     vim.api.nvim_create_autocmd({ "BufDelete", "BufUnload" }, {
       pattern = "*.py",
       callback = function(args)
@@ -176,20 +206,15 @@ return {
             return
           end
 
-          -- For each client this buffer used…
           for client_key, _ in pairs(bucket) do
             bucket[client_key] = nil
-
-            -- …check if any other buffer still uses it
             local still_needed = false
-            for other_bufnr, other_bucket in pairs(buffer_attachments) do
-              if other_bufnr ~= bufnr and other_bucket and other_bucket[client_key] then
+            for other_buf, other_bucket in pairs(buffer_attachments) do
+              if other_buf ~= bufnr and other_bucket and other_bucket[client_key] then
                 still_needed = true
                 break
               end
             end
-
-            -- Stop the LSP if nobody else needs it
             if not still_needed and clients[client_key] then
               local ok, stopped = pcall(function()
                 return clients[client_key].is_stopped()
@@ -198,6 +223,7 @@ return {
                 pcall(clients[client_key].stop, clients[client_key])
               end
               clients[client_key] = nil
+              log("Stopped " .. client_key)
             end
           end
 
@@ -206,7 +232,25 @@ return {
       end,
     })
 
-    -- Attach for already-open Python buffers (when config loads)
+    -- Reattach after venv change (venv-selector.nvim)
+    vim.api.nvim_create_autocmd("User", {
+      pattern = "VenvSelectActivated",
+      callback = function()
+        local b = vim.api.nvim_get_current_buf()
+        -- Clear cached python for this root; next attach will pick the new venv
+        local fname = vim.api.nvim_buf_get_name(b)
+        local root = (function()
+          local r = { get_root_and_python(fname) }
+          return r[1]
+        end)()
+        if root then
+          python_cache[root] = nil
+        end
+        ensure_attached(b)
+      end,
+    })
+
+    -- Attach for already-open Python buffers
     vim.schedule(function()
       for _, b in ipairs(vim.api.nvim_list_bufs()) do
         if vim.api.nvim_buf_is_loaded(b) then
@@ -218,41 +262,35 @@ return {
       end
     end)
 
-    -- Manual restart command for current project
     vim.api.nvim_create_user_command("PythonLspRestart", function()
-      local bufnr = vim.api.nvim_get_current_buf()
-      local fname = vim.api.nvim_buf_get_name(bufnr)
-      local root_dir = (function()
-        local r = { get_root_and_python(fname) }
-        return r[1]
-      end)()
-      if not root_dir then
+      local b = vim.api.nvim_get_current_buf()
+      local f = vim.api.nvim_buf_get_name(b)
+      local r = { get_root_and_python(f) }
+      local root = r[1]
+      if not root then
         vim.notify("No Python project root for current buffer.", vim.log.levels.WARN)
         return
       end
-
       for _, server in ipairs({ "pyright", "ruff" }) do
-        local client_key = server .. ":" .. root_dir
-        if clients[client_key] and not clients[client_key].is_stopped() then
-          pcall(clients[client_key].stop, clients[client_key])
+        local key = server .. ":" .. root
+        if clients[key] and not clients[key].is_stopped() then
+          pcall(clients[key].stop, clients[key])
         end
-        clients[client_key] = nil
+        clients[key] = nil
       end
-
-      -- clear any buffer->client mappings for this root
-      for b, bucket in pairs(buffer_attachments) do
+      for bufnr, bucket in pairs(buffer_attachments) do
         if bucket then
-          for client_key, _ in pairs(bucket) do
-            if client_key:sub(-#root_dir) == root_dir then
-              bucket[client_key] = nil
+          for key, _ in pairs(bucket) do
+            if key:sub(-#root) == root then
+              bucket[key] = nil
             end
           end
         end
       end
-
-      vim.notify("Restarting Python LSPs for: " .. root_dir, vim.log.levels.INFO)
+      python_cache[root] = nil
+      vim.notify("Restarting Python LSPs for: " .. root, vim.log.levels.INFO)
       vim.schedule(function()
-        ensure_attached(bufnr)
+        ensure_attached(b)
       end)
     end, { desc = "Restart Python LSPs for current project" })
   end,

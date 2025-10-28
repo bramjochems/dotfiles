@@ -2,7 +2,6 @@ return (vim.g.vscode and {})
   or {
     "christoomey/vim-tmux-navigator",
     lazy = false,
-    -- Try just the simple approach first
     keys = {
       { "<C-h>", "<cmd>TmuxNavigateLeft<cr>", desc = "Go to left window", mode = { "n", "t" } },
       { "<C-j>", "<cmd>TmuxNavigateDown<cr>", desc = "Go to lower window", mode = { "n", "t" } },

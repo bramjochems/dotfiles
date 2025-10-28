@@ -106,6 +106,13 @@ else
   echo "⚠️  OpenCode.ai (SST) install script not found or not executable"
 fi
 
+# Julia Programming Language install
+if [[ -x "$DOTFILES_DIR/install/julia.sh" ]]; then
+  "$DOTFILES_DIR/install/julia.sh"
+else
+  echo "⚠️  Julia install script not found or not executable"
+fi
+
 # Add more install scripts below
 # "$DOTFILES_DIR/install/neovim.sh"
 # "$DOTFILES_DIR/install/tmux.sh"
