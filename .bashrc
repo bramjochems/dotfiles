@@ -68,6 +68,7 @@ fi
 # PATH entries (prepend for priority)
 [ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH"
 [ -d "/opt/nvim-linux-x86_64/bin" ] && export PATH="/opt/nvim-linux-x86_64/bin:$PATH"
+[ -d "$HOME/.cargo/bin" ] && export PATH="$HOME/.cargo/bin:$PATH"
 
 # pyenv setup (only if installed)
 if command -v pyenv &>/dev/null; then
@@ -89,3 +90,15 @@ command -v starship &>/dev/null && eval "$(starship init bash)"
 if command -v tmux &>/dev/null && [ -z "$TMUX" ]; then
   tmux attach -t default || tmux new -s default
 fi
+
+# >>> juliaup initialize >>>
+# !! Contents within this block are managed by juliaup !!
+
+case ":$PATH:" in
+*:/home/bram/.juliaup/bin:*) ;;
+
+*)
+  export PATH=/home/bram/.juliaup/bin${PATH:+:${PATH}}
+  ;;
+esac
+# <<< juliaup initialize <<<
