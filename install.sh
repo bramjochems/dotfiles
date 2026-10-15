@@ -113,6 +113,13 @@ else
   echo "⚠️  Julia install script not found or not executable"
 fi
 
+# Rust install
+if [[ -x "$DOTFILES_DIR/install/rust.sh" ]]; then
+  "$DOTFILES_DIR/install/rust.sh"
+else
+  echo "⚠️  Rust install script not found or not executable"
+fi
+
 # Add more install scripts below
 # "$DOTFILES_DIR/install/neovim.sh"
 # "$DOTFILES_DIR/install/tmux.sh"
