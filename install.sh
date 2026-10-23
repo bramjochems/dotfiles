@@ -78,6 +78,13 @@ else
   echo "⚠️  Google Cloud CLI install script not found or not executable"
 fi
 
+# AWS CLI install
+if [[ -x "$DOTFILES_DIR/install/aws-cli.sh" ]]; then
+  "$DOTFILES_DIR/install/aws-cli.sh"
+else
+  echo "⚠️  AWS CLI install script not found or not executable"
+fi
+
 # GitHub CLI install
 if [[ -x "$DOTFILES_DIR/install/github-cli.sh" ]]; then
   "$DOTFILES_DIR/install/github-cli.sh"
