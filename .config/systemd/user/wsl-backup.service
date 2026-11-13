@@ -1,0 +1,10 @@
+[Unit]
+Description=restic backup of WSL home to the Synology (wsl-backup)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/wsl-backup run
+# Stay out of the way: lowest CPU and IO priority.
+Nice=19
+CPUSchedulingPolicy=idle
+IOSchedulingClass=idle

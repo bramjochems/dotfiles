@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily wsl-backup at 12:30 (skipped if WSL is not running then)
+
+[Timer]
+OnCalendar=*-*-* 12:30:00
+# No catch-up after WSL was off: don't run a backup at WSL startup.
+Persistent=false
+
+[Install]
+WantedBy=timers.target

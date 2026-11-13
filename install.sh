@@ -26,6 +26,7 @@ link ".tmux.conf" "$HOME/.tmux.conf"
 link ".editorconfig" "$HOME/.editorconfig"
 link "./scripts/bw-auto-auth.sh" "$HOME/.local/bin/bw-auto-auth"
 link "./scripts/archive-project.sh" "$HOME/.local/bin/archive-project"
+link "./scripts/wsl-backup.sh" "$HOME/.local/bin/wsl-backup"
 link ".gitconfig" "$HOME/.gitconfig"
 link ".gitignore_global" "$HOME/.gitignore_global"
 link ".gitmessage" "$HOME/.gitmessage"
@@ -35,6 +36,12 @@ mkdir -p "$HOME/.config"
 link ".config/starship.toml" "$HOME/.config/starship.toml"
 link ".config/dircolors" "$HOME/.config/dircolors"
 link ".config/nvim" "$HOME/.config/nvim"
+mkdir -p "$HOME/.config/systemd/user"
+link ".config/systemd/user/wsl-backup.service" "$HOME/.config/systemd/user/wsl-backup.service"
+link ".config/systemd/user/wsl-backup.timer" "$HOME/.config/systemd/user/wsl-backup.timer"
+# Enabling the timer is a manual step: it needs the restic password file
+# (~/.config/restic-wsl/password, kept outside this repo) and an initialized
+# repo first. Then: systemctl --user enable --now wsl-backup.timer
 
 echo
 echo "🚀 Running install scripts..."
