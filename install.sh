@@ -114,13 +114,6 @@ else
   echo "⚠️  OpenCode.ai (SST) install script not found or not executable"
 fi
 
-# Julia Programming Language install
-if [[ -x "$DOTFILES_DIR/install/julia.sh" ]]; then
-  "$DOTFILES_DIR/install/julia.sh"
-else
-  echo "⚠️  Julia install script not found or not executable"
-fi
-
 # Rust install
 if [[ -x "$DOTFILES_DIR/install/rust.sh" ]]; then
   "$DOTFILES_DIR/install/rust.sh"
