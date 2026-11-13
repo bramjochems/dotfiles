@@ -47,6 +47,9 @@
           "PackageIdentifier": "KeePassXCTeam.KeePassXC"
         },
         {
+          "PackageIdentifier": "LLVM.LLVM"
+        },
+        {
           "PackageIdentifier": "Microsoft.Azure.StorageExplorer"
         },
         {
