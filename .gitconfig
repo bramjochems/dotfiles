@@ -12,6 +12,13 @@
 	defaultBranch = main
 [core]
 	excludesfile = ~/.gitignore_global
+	# delta if installed (install/apt.sh), plain less otherwise
+	pager = "command -v delta >/dev/null 2>&1 && delta || less -FRX"
+[interactive]
+	diffFilter = "command -v delta >/dev/null 2>&1 && delta --color-only || cat"
+[delta]
+	navigate = true    # n/N jump between files in a diff
+	line-numbers = true
 [commit]
 	template = ~/.gitmessage
 [credential]
