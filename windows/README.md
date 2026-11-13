@@ -24,10 +24,18 @@ update this list (`winget search <name>` gives the id). Not in the list on
 purpose: Lenovo/NVIDIA hardware tools, Office/Teams/OneDrive/Edge (come
 with Office/Windows), runtimes.
 
-## Nightly upgrades
+## Scheduled upgrades
 
-`register-autoupgrade.ps1` (admin PowerShell) schedules `winget upgrade --all`
-daily at 02:00, elevated, not on battery. A missed run (laptop asleep or
-off) is skipped, not caught up later. Log:
-`%LOCALAPPDATA%\winget-autoupgrade\autoupgrade.log`. Exclude an app with
-`winget pin add --id <id>`.
+`register-autoupgrade.ps1` (admin PowerShell) schedules two elevated tasks, not
+on battery. A missed run (laptop asleep or off) is skipped, not caught up later.
+
+- **Daily 05:00**: `winget upgrade --all`, except the session-killing packages
+  listed in `$SessionKillers` in `winget-autoupgrade.ps1` (WSL, Windows
+  Terminal, Docker Desktop, VS Code, Ubuntu). Upgrading those restarts WSL or
+  closes the window holding it, killing running shells and agents; the script
+  pins them so `--all` skips them.
+- **Monday 02:00** (Sunday night): upgrades only those pinned packages.
+
+Log: `%LOCALAPPDATA%\winget-autoupgrade\autoupgrade.log`. Keep another app out
+of the daily run with `winget pin add --id <id>`; to move one into the weekly
+group, add it to `$SessionKillers` and re-run the register script.
