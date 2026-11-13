@@ -24,7 +24,6 @@ link ".bash_aliases" "$HOME/.bash_aliases"
 link ".bash_profile" "$HOME/.bash_profile"
 link ".tmux.conf" "$HOME/.tmux.conf"
 link ".editorconfig" "$HOME/.editorconfig"
-link "./scripts/bw-auto-auth.sh" "$HOME/.local/bin/bw-auto-auth"
 link "./scripts/archive-project.sh" "$HOME/.local/bin/archive-project"
 link "./scripts/wsl-backup.sh" "$HOME/.local/bin/wsl-backup"
 link ".gitconfig" "$HOME/.gitconfig"
@@ -63,13 +62,6 @@ fi
 # APT setup
 if [[ -x "$DOTFILES_DIR/install/apt.sh" ]]; then
   "$DOTFILES_DIR/install/apt.sh"
-fi
-
-# Bitwarden CLI install
-if [[ -x "$DOTFILES_DIR/install/bitwarden-cli.sh" ]]; then
-  "$DOTFILES_DIR/install/bitwarden-cli.sh"
-else
-  echo "⚠️  Bitwarden cli install script not found or not executable"
 fi
 
 # Azure Functions Core Tools install
