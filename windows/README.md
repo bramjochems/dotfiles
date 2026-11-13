@@ -27,6 +27,7 @@ with Office/Windows), runtimes.
 ## Nightly upgrades
 
 `register-autoupgrade.ps1` (admin PowerShell) schedules `winget upgrade --all`
-daily at 03:00, elevated, not on battery, catching up after sleep. Log:
+daily at 02:00, elevated, not on battery. A missed run (laptop asleep or
+off) is skipped, not caught up later. Log:
 `%LOCALAPPDATA%\winget-autoupgrade\autoupgrade.log`. Exclude an app with
 `winget pin add --id <id>`.
