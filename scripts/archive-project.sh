@@ -196,8 +196,13 @@ rsync -t --ignore-existing --chmod=F644 "$ARCHIVE" "$ARCHIVE.sha256" "$REMOTE_HO
 echo "Verifying on $REMOTE_HOST..."
 ssh -n -o BatchMode=yes "$REMOTE_HOST" "cd $(q "$REMOTE_DIR") && sha256sum -c --quiet $(q "$NAME.tar.zst.sha256") && zstd -t -q $(q "$NAME.tar.zst")" \
   || { echo "ABORT: remote verification failed. Local folder untouched." >&2; exit 1; }
-# Match the folder's owner (best-effort; integrity was checked above).
-ssh -n -o BatchMode=yes "$REMOTE_HOST" "chown media:media $(q "$REMOTE_FILE") $(q "$REMOTE_FILE.sha256")" 2>/dev/null || true
+# Give the files and any subfolders created under the archive root the same
+# owner as the root itself (best-effort; integrity was checked above).
+OWNER_DIRS=()
+d="$REMOTE_DIR"
+while [[ "$d" != "$REMOTE_ROOT" && "$d" == "$REMOTE_ROOT"/* ]]; do OWNER_DIRS+=("$(q "$d")"); d="$(dirname "$d")"; done
+ssh -n -o BatchMode=yes "$REMOTE_HOST" \
+  "chown --reference=$(q "$REMOTE_ROOT") $(q "$REMOTE_FILE") $(q "$REMOTE_FILE.sha256") ${OWNER_DIRS[*]}" 2>/dev/null || true
 echo "OK: $REMOTE_HOST:$REMOTE_FILE verified (sha256 + zstd test)."
 echo "It gets backed up in the next weekly restic run."
 
