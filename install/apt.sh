@@ -22,7 +22,8 @@ sudo apt install -y \
   fzf \
   rsync \
   gdu \
-  git-delta
+  git-delta \
+  zstd
 
 # Symlink fd -> fdfind if not already present
 if ! command -v fd >/dev/null 2>&1; then
