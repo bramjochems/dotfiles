@@ -121,6 +121,13 @@ else
   echo "⚠️  Rust install script not found or not executable"
 fi
 
+# LaTeX (texlive-full is several GB; used by pandoc md -> pdf/docx scripts)
+if [[ -x "$DOTFILES_DIR/install/latex.sh" ]]; then
+  "$DOTFILES_DIR/install/latex.sh"
+else
+  echo "⚠️  LaTeX install script not found or not executable"
+fi
+
 # Add more install scripts below
 # "$DOTFILES_DIR/install/neovim.sh"
 # "$DOTFILES_DIR/install/tmux.sh"

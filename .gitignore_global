@@ -68,3 +68,4 @@ pip-delete-this-directory.txt
 
 # WSL specific
 .wslconfig
+**/.claude/settings.local.json

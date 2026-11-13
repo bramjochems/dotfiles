@@ -6,7 +6,7 @@ config.font = wezterm.font("JetBrains Mono", { weight = "Regular" }) -- Cascadia
 config.font_size = 11.0
 config.debug_key_events = true
 -- Disable ligatures (only calt as requested)
-config.harfbuzz_features = { "calt=1", "clig=1", "liga=1" }
+config.harfbuzz_features = { "calt=0", "clig=0", "liga=0" }
 -- Window appearance
 config.window_padding = {
   left = 8,
@@ -112,6 +112,18 @@ config.keys = {
     mods = "CTRL|ALT",
     action = wezterm.action.ShowLauncher,
   },
+  {
+    key = "c",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.CopyTo("Clipboard"),
+  },
+  -- Paste from system clipboard
+  {
+    key = "v",
+    mods = "CTRL|SHIFT",
+    action = wezterm.action.PasteFrom("Clipboard"),
+  },
+  
 }
 
 -- ===== MOUSE CONFIGURATION =====
@@ -119,32 +131,28 @@ config.keys = {
 config.hyperlink_rules = wezterm.default_hyperlink_rules()
 
 -- Platform-specific browser opener
-wezterm.on("open-uri", function(window, pane, uri)
+wezterm.on('open-uri', function(window, pane, uri)
   local is_wsl = os.getenv("WSL_DISTRO_NAME") ~= nil or os.getenv("WSLENV") ~= nil
-
+  
   if is_wsl then
     -- In WSL, use Windows browser via cmd.exe
     local success, exit_code, stdout, stderr = wezterm.run_child_process({
-      "powershell.exe",
-      "-Command",
-      "Start-Process",
-      "-FilePath",
-      uri,
+      "powershell.exe", "-Command", 
+      "Start-Process", "-FilePath", uri
     })
     if success then
-      return false -- Prevent default handling
+      return false  -- Prevent default handling
     end
   else
     -- On native Linux, use xdg-open
     local success, exit_code, stdout, stderr = wezterm.run_child_process({
-      "xdg-open",
-      uri,
+      "xdg-open", uri
     })
     if success then
-      return false -- Prevent default handling
+      return false  -- Prevent default handling
     end
   end
-
+  
   -- If our custom handling fails, return true to allow default behavior
   return true
 end)
