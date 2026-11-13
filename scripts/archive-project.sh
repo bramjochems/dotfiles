@@ -17,7 +17,8 @@ PROJECTS_ROOT="$(realpath "${PROJECTS_ROOT:-$HOME/projects}")"
 ZSTD_LEVEL="${ZSTD_LEVEL:-12}"
 
 # Directory names that are always rebuildable. Python venvs are detected by
-# their pyvenv.cfg instead of by name; Rust target/ only next to Cargo.toml.
+# their pyvenv.cfg instead of by name; Rust target/ only next to Cargo.toml;
+# a Julia .julia depot only next to Project.toml.
 EXCLUDE_NAMES=(node_modules __pycache__ .pytest_cache .mypy_cache .ruff_cache
   .tox .nox .next .nuxt .turbo .svelte-kit .parcel-cache .terraform .gradle
   .ipynb_checkpoints)
@@ -86,6 +87,10 @@ mapfile -t RAW < <(
     find "$DIR" -type d \( "${name_expr[@]}" \) -prune -print 2>/dev/null
     find "$DIR" -name pyvenv.cfg -type f -not -path '*/node_modules/*' -printf '%h\n' 2>/dev/null
     find "$DIR" -name Cargo.toml -type f -not -path '*/node_modules/*' -printf '%h/target\n' 2>/dev/null \
+      | while read -r t; do [[ -d "$t" ]] && echo "$t"; done
+    # Project-local Julia depot: rebuildable with Pkg.instantiate() from the
+    # Project.toml/Manifest.toml next to it (those are kept).
+    find "$DIR" -name Project.toml -type f -not -path '*/.julia/*' -not -path '*/node_modules/*' -printf '%h/.julia\n' 2>/dev/null \
       | while read -r t; do [[ -d "$t" ]] && echo "$t"; done
   } | sort -u
 )
