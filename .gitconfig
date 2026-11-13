@@ -1,17 +1,41 @@
-[credential]
-	helper = /mnt/c/Program\\ Files/Git/mingw64/bin/git-credential-manager.exe
-[credential "https://dev.azure.com"]
-	useHttpPath = true
 [user]
 	name = Bram Jochems
-	email = bram@riskatwork.nl
+	# email is set in ~/.gitconfig.local (untracked; this repo is public)
+[include]
+	path = ~/.gitconfig.local
+# Per-client identities (files are local/untracked, they hold work emails)
+[includeIf "gitdir:~/projects/medi-invest/"]
+	path = ~/.gitconfig-medi-invest
+[includeIf "gitdir:~/projects/rawc/"]
+	path = ~/.gitconfig-rawc
 [init]
 	defaultBranch = main
 [core]
 	excludesfile = ~/.gitignore_global
 [commit]
 	template = ~/.gitmessage
+[credential]
+	helper = /mnt/c/Program\\ Files/Git/ucrt64/bin/git-credential-manager.exe
+[credential "https://dev.azure.com"]
+	useHttpPath = true
+[credential "https://github.com"]
+	helper =
+	helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper =
+	helper = !/usr/bin/gh auth git-credential
 [diff]
-    tool = nvimdiff
+	tool = nvimdiff
 [difftool "nvimdiff"]
-    cmd = nvim -d $LOCAL $REMOTE -c 'wincmd l' -c 'wincmd ='
+	cmd = nvim -d $LOCAL $REMOTE -c 'wincmd l' -c 'wincmd ='
+[merge]
+	tool = nvimdiff
+[mergetool "nvimdiff"]
+	cmd = nvim -d $BASE $LOCAL $REMOTE $MERGED -c 'wincmd J' -c 'wincmd ='
+[mergetool]
+	keepBackup = false
+[filter "lfs"]
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
