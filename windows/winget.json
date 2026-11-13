@@ -1,0 +1,104 @@
+{
+  "$schema": "https://aka.ms/winget-packages.schema.2.0.json",
+  "CreationDate": "2026-11-13T00:00:00.000-00:00",
+  "Sources": [
+    {
+      "SourceDetails": {
+        "Name": "winget",
+        "Identifier": "Microsoft.Winget.Source_8wekyb3d8bbwe",
+        "Argument": "https://cdn.winget.microsoft.com/cache",
+        "Type": "Microsoft.PreIndexed.Package"
+      },
+      "Packages": [
+        {
+          "PackageIdentifier": "7zip.7zip"
+        },
+        {
+          "PackageIdentifier": "Anthropic.Claude"
+        },
+        {
+          "PackageIdentifier": "Brother.iPrintScan"
+        },
+        {
+          "PackageIdentifier": "Docker.DockerDesktop"
+        },
+        {
+          "PackageIdentifier": "dotPDN.PaintDotNet"
+        },
+        {
+          "PackageIdentifier": "EpicGames.EpicGamesLauncher"
+        },
+        {
+          "PackageIdentifier": "GIMP.GIMP.3"
+        },
+        {
+          "PackageIdentifier": "Git.Git"
+        },
+        {
+          "PackageIdentifier": "Google.GoogleDrive"
+        },
+        {
+          "PackageIdentifier": "Inkscape.Inkscape"
+        },
+        {
+          "PackageIdentifier": "Joplin.Joplin"
+        },
+        {
+          "PackageIdentifier": "KeePassXCTeam.KeePassXC"
+        },
+        {
+          "PackageIdentifier": "Microsoft.Azure.StorageExplorer"
+        },
+        {
+          "PackageIdentifier": "Microsoft.PowerShell"
+        },
+        {
+          "PackageIdentifier": "Microsoft.VisualStudioCode"
+        },
+        {
+          "PackageIdentifier": "Microsoft.WindowsTerminal"
+        },
+        {
+          "PackageIdentifier": "Mozilla.Thunderbird.nl"
+        },
+        {
+          "PackageIdentifier": "Nvidia.GeForceNow"
+        },
+        {
+          "PackageIdentifier": "OpenShot.OpenShot"
+        },
+        {
+          "PackageIdentifier": "OpenVPNTechnologies.OpenVPN"
+        },
+        {
+          "PackageIdentifier": "paolosalvatori.ServiceBusExplorer"
+        },
+        {
+          "PackageIdentifier": "Postman.Postman"
+        },
+        {
+          "PackageIdentifier": "Python.Python.3.14"
+        },
+        {
+          "PackageIdentifier": "ShareX.ShareX"
+        },
+        {
+          "PackageIdentifier": "Synology.Assistant"
+        },
+        {
+          "PackageIdentifier": "Valve.Steam"
+        },
+        {
+          "PackageIdentifier": "VideoLAN.VLC"
+        },
+        {
+          "PackageIdentifier": "wez.wezterm"
+        },
+        {
+          "PackageIdentifier": "Zoom.Zoom.EXE"
+        }
+      ]
+    }
+  ],
+  "WinGetVersion": "1.29.380"
+}
