@@ -20,7 +20,9 @@ sudo apt install -y \
   tmux \
   starship \
   fzf \
-  rsync
+  rsync \
+  gdu \
+  git-delta
 
 # Symlink fd -> fdfind if not already present
 if ! command -v fd >/dev/null 2>&1; then
