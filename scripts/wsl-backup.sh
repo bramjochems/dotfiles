@@ -34,9 +34,10 @@ INCLUDES=(
 for m in "$HOME"/.claude/projects/*/memory; do [[ -d "$m" ]] && INCLUDES+=("$m"); done
 
 # Rebuildable content, same idea as archive-project. Venvs are detected by
-# their pyvenv.cfg rather than by name.
+# their pyvenv.cfg, plus anything named .venv (Docker-made ones can lack the
+# pyvenv.cfg).
 EXCLUDES=(
-  node_modules __pycache__ .pytest_cache .mypy_cache .ruff_cache .tox .nox
+  node_modules .venv __pycache__ .pytest_cache .mypy_cache .ruff_cache .tox .nox
   .next .nuxt .turbo .svelte-kit .parcel-cache .terraform .gradle
   .ipynb_checkpoints .julia
   # Large, rebuildable if lost (decided 2026-11-13):
@@ -97,8 +98,23 @@ cmd_run() {
   local paths=()
   for p in "${INCLUDES[@]}"; do [[ -e "$p" ]] && paths+=("$p"); done
 
+  # Folders we can't read (e.g. Docker-owned dev database dirs like data/db)
+  # can't be backed up anyway; skip them explicitly instead of warning.
+  local unreadable=0
+  while read -r u; do
+    [[ -n "$u" ]] && { excl+=(--exclude "$u"); unreadable=$((unreadable + 1)); }
+  done < <(find "${paths[@]}" -name node_modules -prune -o -type d ! -readable -print -prune 2>/dev/null)
+  ((unreadable)) && log "skipping $unreadable unreadable folder(s)"
+
   log "backup start (${#paths[@]} paths) -> $RESTIC_REPOSITORY"
-  restic backup --tag wsl --exclude-if-present pyvenv.cfg "${excl[@]}" "${paths[@]}"
+  # Exit 3 = snapshot saved but some files were unreadable: warn, don't fail.
+  local rc=0
+  restic backup --tag wsl --exclude-if-present pyvenv.cfg "${excl[@]}" "${paths[@]}" || rc=$?
+  if ((rc == 3)); then
+    log "warning: snapshot saved, but some files could not be read"
+  elif ((rc != 0)); then
+    log "backup FAILED (restic exit $rc)"; exit "$rc"
+  fi
   log "retention"
   restic forget --tag wsl --keep-daily 7 --keep-weekly 8 --keep-monthly 12 --prune
   log "done"
