@@ -32,6 +32,10 @@ INCLUDES=(
 )
 # Claude memory folders (not the session transcripts next to them).
 for m in "$HOME"/.claude/projects/*/memory; do [[ -d "$m" ]] && INCLUDES+=("$m"); done
+# Google Drive for desktop mirror on the Windows side (mirroring mode, so the
+# files are local). Drive syncs deletions, so this is the versioned copy.
+# Native Google Docs/Sheets are only link files here (accepted).
+for d in /mnt/c/Users/*/"My Drive"; do [[ -d "$d" ]] && INCLUDES+=("$d"); done
 
 # Rebuildable content, same idea as archive-project. Venvs are detected by
 # their pyvenv.cfg, plus anything named .venv (Docker-made ones can lack the
@@ -40,6 +44,7 @@ EXCLUDES=(
   node_modules .venv __pycache__ .pytest_cache .mypy_cache .ruff_cache .tox .nox
   .next .nuxt .turbo .svelte-kit .parcel-cache .terraform .gradle
   .ipynb_checkpoints .julia
+  .tmp.drivedownload .tmp.driveupload
   # Large, rebuildable if lost (decided 2026-11-13):
   "$HOME/projects/rawc/stocktimal/ml/bench"
 )
