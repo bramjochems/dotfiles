@@ -34,4 +34,7 @@ else
   echo "✅ fd already available"
 fi
 
+echo "🔁 Unattended upgrades: also -updates and third-party repos"
+sudo install -m 0644 "$(dirname "$0")/51unattended-upgrades-local" /etc/apt/apt.conf.d/51unattended-upgrades-local
+
 echo "✅ APT packages installed."

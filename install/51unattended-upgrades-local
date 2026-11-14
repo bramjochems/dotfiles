@@ -1,0 +1,18 @@
+// Installed to /etc/apt/apt.conf.d/ by install/apt.sh.
+// Ubuntu's default (50unattended-upgrades) only takes security updates.
+// This adds the regular bug-fix updates and the third-party repos that
+// install/*.sh set up, so `apt upgrade` never has to be run by hand.
+// Lists in apt.conf.d files are additive: this extends 50unattended-upgrades.
+//
+// Runs from apt-daily-upgrade.timer (~06:00-07:00, catches up when WSL
+// starts). It never restarts WSL or reboots (Automatic-Reboot stays false):
+// in-distro upgrades don't kill open terminals or Claude sessions.
+// Log: /var/log/unattended-upgrades/unattended-upgrades.log
+Unattended-Upgrade::Origins-Pattern {
+        "origin=Ubuntu,archive=${distro_codename}-updates";
+        "origin=LP-PPA-git-core";        // ppa:git-core/ppa
+        "origin=gh";                     // GitHub CLI
+        "origin=cloud-sdk";              // Google Cloud CLI
+        "origin=azure-cli ${distro_codename}";
+        "origin=cloudflared";
+};
