@@ -36,6 +36,8 @@ on battery. A missed run (laptop asleep or off) is skipped, not caught up later.
   pins them so `--all` skips them.
 - **Monday 02:00** (Sunday night): upgrades only those pinned packages.
 
-Log: `%LOCALAPPDATA%\winget-autoupgrade\autoupgrade.log`. Keep another app out
+Log: `%LOCALAPPDATA%\winget-autoupgrade\autoupgrade.log`. Each run also reports to a
+Healthchecks dashboard if `hc-ping-url.txt` (the ping URL, one line) exists next
+to the installed script; that file is machine-local and never committed. Keep another app out
 of the daily run with `winget pin add --id <id>`; to move one into the weekly
 group, add it to `$SessionKillers` and re-run the register script.

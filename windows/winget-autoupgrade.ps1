@@ -24,16 +24,39 @@ function Write-Log { process { $_ | Out-File $log -Append -Encoding utf8 } }
 function Filter-Progress { process { if ($_ -notmatch '^\s*[-\\|/]\s*$' -and $_ -notmatch '\u2588|\u2592') { $_ } } }
 $common = @('--silent', '--disable-interactivity', '--accept-package-agreements', '--accept-source-agreements')
 
+# Healthchecks dashboard (homelab, LAN-only). The ping URL is machine-local,
+# NOT in this public repo: hc-ping-url.txt next to this script holds
+# https://<host>/ping/<project ping key>. No file = no ping. Exit code 0 = OK,
+# anything else turns the check red; the body lists what happened.
+$NoUpdate = -1978335189   # 0x8A15002B APPINSTALLER_CLI_ERROR_UPDATE_NOT_APPLICABLE: nothing to do
+function Send-Ping($slug, $code, $lines) {
+  $f = Join-Path $dir 'hc-ping-url.txt'
+  if (-not (Test-Path $f)) { return }
+  $body = (@("exit $code") + ($lines | Where-Object { $_ -match '\) Found |Successfully installed|failed|error' })) -join "`n"
+  try { Invoke-RestMethod -Method Post -Uri "$((Get-Content $f -Raw).Trim())/$slug/$code" -Body $body -TimeoutSec 15 | Out-Null }
+  catch { "healthchecks ping failed: $_" | Write-Log }
+}
+
 if ($Weekly) {
   "=== $(Get-Date -Format s) weekly (session-killing packages) ===" | Write-Log
+  $all = @(); $worst = 0
   foreach ($id in $SessionKillers) {
     "--- $id" | Write-Log
-    winget upgrade --id $id --exact --include-pinned @common 2>&1 | Filter-Progress | Write-Log
-    "exit code $LASTEXITCODE" | Write-Log
+    $out = winget upgrade --id $id --exact --include-pinned @common 2>&1 | Filter-Progress
+    $rc = $LASTEXITCODE
+    $out | Write-Log
+    "exit code $rc" | Write-Log
+    $all += $out
+    if ($rc -ne 0 -and $rc -ne $NoUpdate) { $worst = $rc; $all += "$id failed: exit code $rc" }
   }
+  Send-Ping 'winget-weekly' $worst $all
 } else {
   "=== $(Get-Date -Format s) daily ===" | Write-Log
   foreach ($id in $SessionKillers) { winget pin add --id $id --exact --disable-interactivity *> $null }
-  winget upgrade --all @common 2>&1 | Filter-Progress | Write-Log
-  "exit code $LASTEXITCODE" | Write-Log
+  $out = winget upgrade --all @common 2>&1 | Filter-Progress
+  $rc = $LASTEXITCODE
+  $out | Write-Log
+  "exit code $rc" | Write-Log
+  if ($rc -eq $NoUpdate) { $rc = 0 }
+  Send-Ping 'winget-daily' $rc $out
 }

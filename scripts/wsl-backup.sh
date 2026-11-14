@@ -51,6 +51,16 @@ EXCLUDES=(
 
 log() { echo "[$(date -Is)] $*"; }
 
+# Healthchecks dashboard (homelab, LAN-only). The ping URL is machine-local,
+# NOT in this public repo: ~/.config/healthchecks/ping-url holds
+# https://<host>/ping/<project ping key>. No file = no ping; a failed ping
+# (e.g. away from home) never affects the backup.
+hc_ping() {  # hc_ping start|<exit code>
+  local f="$HOME/.config/healthchecks/ping-url"
+  [[ -r "$f" ]] || return 0
+  curl -fsS -m 10 --retry 1 -o /dev/null "$(<"$f")/wsl-backup/$1" 2>/dev/null || true
+}
+
 need_password() {
   [[ -s "$RESTIC_PASSWORD_FILE" ]] || {
     echo "No password file at $RESTIC_PASSWORD_FILE" >&2; exit 1; }
@@ -126,7 +136,7 @@ cmd_run() {
 }
 
 case "${1:-run}" in
-  run) cmd_run ;;
+  run) hc_ping start; trap 'hc_ping $?' EXIT; cmd_run ;;
   status) cmd_status ;;
   init) cmd_init ;;
   -h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//' ;;
