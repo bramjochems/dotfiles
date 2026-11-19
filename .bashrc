@@ -92,3 +92,21 @@ if command -v tmux &>/dev/null && [ -z "$TMUX" ]; then
 fi
 
 . "$HOME/.cargo/env"
+
+# Azure CLI profile per project tree. Medi-Invest and RAWC each keep their own logins and default
+# subscription, so `az login` for one never changes the other. Anywhere else az uses ~/.azure.
+# Claude Code sessions get the same through "env" in each project's .claude/settings.local.json.
+_az_profile_for_dir() {
+  case "$PWD/" in
+    "$HOME"/projects/medi-invest/* | "$HOME"/projects/comfi/*)
+      export AZURE_CONFIG_DIR="$HOME/.azure-medi-invest" ;;
+    "$HOME"/projects/rawc/* | "$HOME"/projects/project-starter/*)
+      export AZURE_CONFIG_DIR="$HOME/.azure-rawc" ;;
+    *)
+      # Only undo what this function set; a value set by hand elsewhere is left alone.
+      case "${AZURE_CONFIG_DIR:-}" in
+        "$HOME/.azure-medi-invest" | "$HOME/.azure-rawc") unset AZURE_CONFIG_DIR ;;
+      esac ;;
+  esac
+}
+PROMPT_COMMAND="_az_profile_for_dir${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
