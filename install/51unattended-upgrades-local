@@ -14,5 +14,6 @@ Unattended-Upgrade::Origins-Pattern {
         "origin=gh";                     // GitHub CLI
         "origin=cloud-sdk";              // Google Cloud CLI
         "origin=azure-cli ${distro_codename}";
+        "origin=microsoft-ubuntu-${distro_codename}-prod ${distro_codename}";  // PowerShell
         "origin=cloudflared";
 };

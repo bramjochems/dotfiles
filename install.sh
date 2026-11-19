@@ -92,6 +92,13 @@ else
   echo "⚠️  GitHub CLI install script not found or not executable"
 fi
 
+# PowerShell 7 + Exchange Online module (M365 admin)
+if [[ -x "$DOTFILES_DIR/install/powershell.sh" ]]; then
+  "$DOTFILES_DIR/install/powershell.sh"
+else
+  echo "⚠️  PowerShell install script not found or not executable"
+fi
+
 # Claude Code install
 if [[ -x "$DOTFILES_DIR/install/claude-code.sh" ]]; then
   "$DOTFILES_DIR/install/claude-code.sh"
