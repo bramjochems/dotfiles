@@ -38,6 +38,12 @@ for skill in "$DOTFILES_DIR"/claude/skills/*/; do
   name="$(basename "$skill")"
   link "claude/skills/$name" "$HOME/.claude/skills/$name"
 done
+# Claude Code hooks: each script under claude/hooks/ becomes ~/.claude/hooks/<name>.
+mkdir -p "$HOME/.claude/hooks"
+for hook in "$DOTFILES_DIR"/claude/hooks/*; do
+  [[ -f "$hook" ]] || continue
+  link "claude/hooks/$(basename "$hook")" "$HOME/.claude/hooks/$(basename "$hook")"
+done
 
 # .config files and directories
 mkdir -p "$HOME/.config"
@@ -113,6 +119,27 @@ if [[ -x "$DOTFILES_DIR/install/claude-code.sh" ]]; then
   "$DOTFILES_DIR/install/claude-code.sh"
 else
   echo "⚠️  Claude Code install script not found or not executable"
+fi
+
+# Claude Code user settings: ~/.claude/settings.json is not kept in dotfiles (Claude Code writes to it),
+# so only make sure the SessionStart hook entry is there. Idempotent; other keys are left alone.
+claude_settings="$HOME/.claude/settings.json"
+status_hook='~/.claude/hooks/status-context.sh'
+if command -v jq >/dev/null; then
+  [[ -s "$claude_settings" ]] || echo '{}' > "$claude_settings"
+  if jq -e --arg c "$status_hook" \
+      '[.hooks.SessionStart[]?.hooks[]?.command] | index($c)' "$claude_settings" >/dev/null; then
+    echo "✅ Claude SessionStart hook already in $claude_settings"
+  else
+    tmp_settings="$(mktemp)"
+    jq --arg c "$status_hook" \
+      '.hooks.SessionStart += [{"matcher": "startup|clear", "hooks": [{"type": "command", "command": $c, "timeout": 5}]}]' \
+      "$claude_settings" > "$tmp_settings" && cat "$tmp_settings" > "$claude_settings"
+    rm -f "$tmp_settings"
+    echo "✅ Added Claude SessionStart hook to $claude_settings"
+  fi
+else
+  echo "⚠️  jq not found: Claude SessionStart hook not added to $claude_settings"
 fi
 
 # Codex CLI install
