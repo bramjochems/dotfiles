@@ -27,9 +27,10 @@ Nothing here is project-specific. The gather script works out, from the folder y
 | Level | **full** when the repo has `docs/agentic-workflow.md` and `docs/agentic-workflow.bindings.md`; **minimal** otherwise |
 | Full: paths | from the bindings file: *Plans directory*, *Roadmap* (a file, or a file § section), *Session pointer* (the Status file). A role that binds to no file is printed as its binding text |
 | Full: owner's gates | the bindings' *Irreversible steps* and *Integration branch* rows, plus the project's `CLAUDE.md` rules on merging, pushing and deploying |
-| Project mode | `mode:` in the Status file's frontmatter (`active` or `maintenance`); otherwise inferred: maintenance when the owner has no commits in 30 days and open PRs are mostly bots'. The gather output says which, and on what basis |
+| Project mode | `mode:` in the Status file's frontmatter (`active` or `maintenance`); otherwise inferred: `active` when the owner typed a message in a Claude session in this project (other than the one running `/status`) in the last 14 days, `maintenance` otherwise. Commits do not count: agents commit under his name. The gather output says which, and on what basis |
 | Prod lag | repo variables named `*_DEPLOYED_SHA` (e.g. `PROD_DEPLOYED_SHA`), compared with the default branch; none means prod lag is unknown and deploy runs stand in |
 | Bots | PR authors `app/…` or `…[bot]` (Dependabot, a CI app) |
+| Housekeeping deploys | deploy runs from a schedule, a base-image or dependency bump, or a bot's merge (matched on the workflow name and run title). They are not deploys of the owner's work: never in Since you were away or Done today, only one count line under Maintenance |
 | Flag labels | `blocks-go-live` and `next` (the methodology's labels; a project without them simply has none flagged) |
 
 Gather command, from anywhere inside the project:
@@ -262,7 +263,8 @@ Other view: /status arc
   sessions last. The session running `/status` is never under Other sessions.
 - **Done today:** PRs merged since midnight grouped by effort (or, without GitHub, today's commits in a few
   words), and the successful deploys. One line per effort. Leave the block out when nothing was done.
-- **Maintenance:** one line pointing to `arc`; leave it out when there is nothing.
+- **Maintenance:** one line pointing to `arc`, housekeeping deploys as a count in it; leave it out when there is
+  nothing.
 
 Then write the files (step 6) and show the view.
 
@@ -290,6 +292,7 @@ Then write the files (step 6) and show the view.
 ## Maintenance
 - Prod is <N> PRs behind main: <PR names>
 - Bot PRs: <PR name (#n)>, <checks>, open since <date>
+- Housekeeping deploys today: <n> (<workflow> ×<n>; …)[, <n> failed]
 - Red on main: <workflow> since <time> | none
 - Open issues: <N> (<N> opened today); flagged, no effort: <issue name (#n)>; …
 
@@ -329,6 +332,7 @@ Inbox: <n> of 7 → /status now
 - Dependabot / bot PRs: <PR name (#n)>, <checks>, open since <date>; …
 - Red on main: <workflow> since <time> | none
 - Last deploy: <workflow> <Ddd D Mmm>, <outcome>
+- Housekeeping deploys today: <n> (<workflow> ×<n>; …)[, <n> failed]
 - Open issues: <N> (<N> opened today)
 
 Inbox: <n> of 7 → /status now

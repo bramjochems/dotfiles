@@ -8,7 +8,8 @@
 #   - level: "full" when the repo has docs/agentic-workflow.md and docs/agentic-workflow.bindings.md
 #     (paths for STATUS, ROADMAP and plans come from the bindings), else "minimal"
 #     (git, gh, sessions, inbox only);
-#   - project mode: `mode:` in the STATUS file's frontmatter, else inferred from activity.
+#   - project mode: `mode:` in the STATUS file's frontmatter, else inferred: active when the owner
+#     typed in a Claude session here in the last 14 days, maintenance otherwise.
 #
 # Read-only: no `git fetch`, no writes to the repo or to GitHub. Every gh call is bounded, and a
 # failed one prints "unknown" in its section instead of stopping the rest.
@@ -89,20 +90,8 @@ if [ "$level" = full ]; then
   echo "owner's gates (Integration branch): $(binding '^Integration branch' | cut -c1-400)"
 fi
 
-# ---------------------------------------------------------------- project mode
-echo; echo "## mode (active development or maintenance)"
 declared=""
 [ -n "$status_file" ] && declared=$(awk 'NR==1 && $0!="---"{exit} NR>1 && /^---/{exit} /^mode:/{print $2}' "$status_file")
-owner_commits="?"; [ "$in_git" = 1 ] && owner_commits=$(git log --all --since=30.days --author="$(git config user.name)" --format=%h 2>/dev/null | wc -l)
-pr_authors=""; [ -n "$R" ] && pr_authors=$(gh_ pr list -R "$R" --state open --limit 100 --json author -q '.[].author.login')
-bot_prs=$(printf '%s\n' "$pr_authors" | grep -cE '^app/|\[bot\]$')
-human_prs=$(printf '%s\n' "$pr_authors" | grep -vcE '^app/|\[bot\]$|^$')
-if [ -n "$declared" ]; then
-  echo "mode $declared (declared in $status_file)"
-else
-  if [ "$owner_commits" = 0 ] && [ "$bot_prs" -ge "$human_prs" ]; then m=maintenance; else m=active; fi
-  echo "mode $m (inferred: $owner_commits commits by $owner in 30 days on any local branch; open PRs $bot_prs by bots, $human_prs by people)"
-fi
 
 # ---------------------------------------------------------------- GitHub
 if [ -n "$R" ]; then
@@ -147,6 +136,10 @@ if [ -n "$R" ]; then
   # Deploy workflows: name says "deploy", or "infra" without being a CI/build/check job.
   [ -z "$deploy_re" ] && deploy_re='deploy'
   deploy_sel="select((.workflowName | test(\"$deploy_re\"; \"i\")) or ((.workflowName | test(\"infra\"; \"i\")) and (.workflowName | test(\"^(ci|build|security)\\\\b|lint|test|check|validat\"; \"i\") | not)))"
+  # Housekeeping deploys (a schedule, a base-image or dependency bump, a bot's merge) are Maintenance,
+  # counted on one line, not deploys of the owner's work.
+  hk='(.event == "schedule") or ((.workflowName + " " + (.displayTitle // "")) | test("digest|base[- ]?image|python base|dependenc|dependabot|renovate|upkeep|\\bbump\\b|\\[bot\\]"; "i"))'
+  real_sel="select(($hk) | not)"; hk_sel="select($hk)"
 
   echo; echo "## merged-today (number · title · merged at)"
   gh_ pr list -R "$R" --state merged --search "merged:>=$midnight" --limit 100 \
@@ -154,9 +147,11 @@ if [ -n "$R" ]; then
 
   echo; echo "## deploys-today (workflow · started), deploy runs on $default_branch that succeeded"
   midnight_utc=$(date -u -d "$midnight" +%FT%TZ)
-  gh_ run list -R "$R" --branch "$default_branch" --limit 200 --json workflowName,conclusion,createdAt \
-    -q ".[] | select(.createdAt >= \"$midnight_utc\") | select(.conclusion == \"success\") | $deploy_sel
-        | \"\(.workflowName) · \(.createdAt)\"" | or_unknown
+  runs_today=$(gh_ run list -R "$R" --branch "$default_branch" --limit 200 --json workflowName,conclusion,createdAt,event,displayTitle \
+    -q "[.[] | select(.createdAt >= \"$midnight_utc\") | select(.conclusion == \"success\") | $deploy_sel]")
+  printf '%s' "$runs_today" | jq -r ".[] | $real_sel | \"\\(.workflowName) · \\(.createdAt)\"" 2>/dev/null | or_unknown
+  printf '%s' "$runs_today" | jq -r "[.[] | $hk_sel] | select(length > 0)
+    | \"housekeeping (Maintenance, one count line): \\(length) runs: \\(group_by(.workflowName) | map(\"\\(.[0].workflowName) ×\\(length)\") | join(\"; \"))\"" 2>/dev/null
 
   echo; echo "## issues (open total · opened today · flagged by label)"
   total=$(gh_ issue list -R "$R" --state open --limit 1000 --json number -q 'length')
@@ -176,6 +171,15 @@ for _ in 1 2 3 4 5 6 7 8; do
   [ "$(ps -o comm= -p "$p" 2>/dev/null)" = claude ] && { self_pid=$p; break; }
 done
 transcript() { find "$HOME/.claude/projects" -maxdepth 2 -name "$1.jsonl" -print -quit 2>/dev/null; }
+# Timestamps of the owner's own messages in a transcript, newest first: typed text, not tool results,
+# task notifications or injected reminders.
+owner_msgs() {
+  tac "$1" | grep -m 400 '"type":"user"' | jq -r 'select(.isMeta != true and .isSidechain != true)
+    | select(.message.content | (type == "string" and ((startswith("<task-notification") or startswith("<local-command")
+        or startswith("<system-reminder")) | not))
+      or (type == "array" and any(.[]; .type == "text") and all(.[]; .type != "tool_result")))
+    | .timestamp' 2>/dev/null
+}
 
 # This project's checkouts: the worktrees, plus sibling folders that are clones of the same remote.
 if [ "$in_git" = 1 ]; then
@@ -196,12 +200,7 @@ self_sid=$(printf '%s' "$agents" | jq -r --arg pid "$self_pid" '.[]? | select((.
 echo; echo "## owner (away since = start of the owner's last gap of 30+ min, or the last /status if later than the gap's end)"
 gap_start=""; gap_end=""
 if [ -n "$self_sid" ] && t=$(transcript "$self_sid") && [ -n "$t" ]; then
-  # Owner messages: typed text, not tool results, task notifications or injected reminders. Newest first.
-  msgs=$(tac "$t" | grep -m 400 '"type":"user"' | jq -r 'select(.isMeta != true and .isSidechain != true)
-    | select(.message.content | (type == "string" and ((startswith("<task-notification") or startswith("<local-command")
-        or startswith("<system-reminder")) | not))
-      or (type == "array" and any(.[]; .type == "text") and all(.[]; .type != "tool_result")))
-    | .timestamp' 2>/dev/null)
+  msgs=$(owner_msgs "$t")
   # Walk back from the newest message (the one that asked for /status) to the first gap of 30+ minutes;
   # short messages after a long gap do not end the absence.
   later=""
@@ -231,9 +230,12 @@ if [ -n "$R" ]; then
   gh_ pr list -R "$R" --state merged --search "merged:>=$since_utc" --limit 50 \
     --json number,title,mergedAt -q 'sort_by(.mergedAt) | .[] | "  #\(.number) · \(.title) · \(.mergedAt)"' | or_none
   echo "deploy runs started or finished (any outcome):"
-  gh_ run list -R "$R" --branch "$default_branch" --limit 200 --json workflowName,status,conclusion,createdAt,updatedAt \
-    -q ".[] | select(.updatedAt >= \"$since_utc\") | $deploy_sel
-        | \"  \(.workflowName) · \(if (.conclusion // \"\") == \"\" then .status else .conclusion end) · started \(.createdAt) · last update \(.updatedAt)\"" | or_none
+  runs_since=$(gh_ run list -R "$R" --branch "$default_branch" --limit 200 --json workflowName,status,conclusion,createdAt,updatedAt,event,displayTitle \
+    -q "[.[] | select(.updatedAt >= \"$since_utc\") | $deploy_sel]")
+  printf '%s' "$runs_since" | jq -r ".[] | $real_sel
+        | \"  \\(.workflowName) · \\(if (.conclusion // \"\") == \"\" then .status else .conclusion end) · started \\(.createdAt) · last update \\(.updatedAt)\"" 2>/dev/null | or_none
+  printf '%s' "$runs_since" | jq -r "[.[] | $hk_sel] | select(length > 0)
+    | \"  housekeeping (Maintenance only): \\(length) runs, \\([.[] | select(.conclusion != \"success\")] | length) not successful\"" 2>/dev/null
   echo "runs on $default_branch that failed:"
   gh_ run list -R "$R" --branch "$default_branch" --limit 200 --json workflowName,conclusion,createdAt,updatedAt \
     -q ".[] | select(.updatedAt >= \"$since_utc\")
@@ -270,6 +272,7 @@ echo; echo "## last-sessions (recent Claude sessions started in this project, ne
 # Transcript folders are named after the session's cwd with / and . turned into -. Match every
 # folder whose name starts with a checkout's key, then confirm by the cwd recorded in the transcript.
 live_sids=$(printf '%s' "$agents" | jq -r '.[]?.sessionId' 2>/dev/null)
+tmp_transcripts=$(mktemp)
 while IFS= read -r pth; do
   [ -z "$pth" ] && continue
   for key in "$(printf '%s' "$pth" | tr '/' '-')" "$(printf '%s' "$pth" | tr '/.' '--')"; do
@@ -280,11 +283,39 @@ done <<< "$paths" | sort -u | while read -r d; do ls -t "$d"/*.jsonl 2>/dev/null
     sid=$(basename "$f" .jsonl); [ "$sid" = "$self_sid" ] && continue
     cwd=$(grep -m1 -o '"cwd":"[^"]*"' "$f" | cut -d'"' -f4); [ -z "$cwd" ] && continue
     printf '%s\n' "$paths" | grep -qxF "$cwd" || printf '%s\n' "$paths" | while read -r q; do [[ "$cwd" == "$q"/* ]] && echo y; done | grep -q y || continue
+    echo "$f"
+  done > "$tmp_transcripts"
+head -6 "$tmp_transcripts" | while read -r f; do
+    sid=$(basename "$f" .jsonl)
     title=$(grep -o '"aiTitle":"[^"]*"' "$f" | tail -1 | cut -d'"' -f4)
     branch=$(tac "$f" | grep -m1 -o '"gitBranch":"[^"]*"' | cut -d'"' -f4)
     live=""; printf '%s\n' "$live_sids" | grep -qxF "$sid" && live=" · LIVE"
     echo "$(date -d "@$(stat -c %Y "$f")" '+%a %d %b %H:%M') · ${title:-(no title)} · ${branch:-?}$live"
-  done | head -6 | { out=$(cat); [ -n "$out" ] && printf '%s\n' "$out" || echo "none"; }
+  done | { out=$(cat); [ -n "$out" ] && printf '%s\n' "$out" || echo "none"; }
+
+echo; echo "## mode (active development or maintenance)"
+# Inferred from the owner's own messages: active when he typed in a Claude session here (other than
+# this one) in the last 14 days. Commits do not count: agents commit under his name.
+if [ -n "$declared" ]; then
+  echo "mode $declared (declared in $status_file)"
+else
+  last_msg=""; last_title=""; cutoff14=$(date -d '-14 days' +%s)
+  while read -r f; do
+    [ "$(stat -c %Y "$f")" -lt "$cutoff14" ] && break   # newest first: older files cannot hold a newer message
+    m=$(owner_msgs "$f" | head -1)
+    if [ -n "$m" ] && { [ -z "$last_msg" ] || [ "$(epoch "$m")" -gt "$(epoch "$last_msg")" ]; }; then
+      last_msg=$m; last_title=$(grep -o '"aiTitle":"[^"]*"' "$f" | tail -1 | cut -d'"' -f4)
+    fi
+  done < "$tmp_transcripts"
+  if [ -n "$last_msg" ] && [ "$(epoch "$last_msg")" -ge "$cutoff14" ]; then
+    echo "mode active (inferred: your last message in a session here $(hhmm "$last_msg"), ${last_title:-no title}; within 14 days)"
+  else
+    newest=$(head -1 "$tmp_transcripts"); when="none found"
+    [ -n "$newest" ] && when="newest session here last active $(date -d "@$(stat -c %Y "$newest")" '+%a %d %b %Y')"
+    echo "mode maintenance (inferred: no message from you in a session here in 14 days; $when)"
+  fi
+fi
+rm -f "$tmp_transcripts"
 
 # ---------------------------------------------------------------- local work
 if [ "$in_git" = 1 ]; then
