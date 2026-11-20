@@ -100,7 +100,7 @@ if [ "$in_git" = 1 ]; then
     if [ "$finished" -gt 0 ] || [ "$prunable" -gt 0 ]; then
       how="git worktree remove"; [ -x "$main_root/scripts/closeout.sh" ] && how="scripts/closeout.sh"
       w=()
-      [ "$finished" -gt 0 ] && w+=("$finished worktree$([ "$finished" = 1 ] || echo s) look$([ "$finished" = 1 ] && echo s) finished (merged into $upstream, clean)")
+      [ "$finished" -gt 0 ] && w+=("$finished worktree$([ "$finished" = 1 ] || echo s) merged into $upstream and clean")
       [ "$prunable" -gt 0 ] && { how+="; git worktree prune"; w+=("$prunable prunable (folder gone)"); }
       line=${w[0]}; [ ${#w[@]} -gt 1 ] && line+=" · ${w[1]}"
       out+=("$line, $asof → $how")
