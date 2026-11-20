@@ -1,16 +1,22 @@
 ---
 name: status
-description: Show where the current project stands in one fixed, screen-sized shape, and keep the owner's inbox. Works in every project; reads the project's planning docs through its agentic-workflow bindings when it has them, and git, gh and Claude session logs otherwise. `/status now` is what changed since the owner was away, what waits on him, what was decided for him, what runs and what got done today, and writes a pane file for a tmux side pane; `/status arc` is the efforts as Now / Next / Later with progress and maintenance (or, without planning docs, recent sessions, open PRs and unmerged work), and writes arc.md. Also defines how the orchestrator asks the owner (the inbox) and how it ends every report. Use for /status, "status?", "where are we", "what was I doing", "what's open", "what waits on me", after a session was killed, and whenever you are about to ask the owner something.
+description: Show where the current project stands in one fixed, screen-sized shape, and keep the owner's inbox. Works in every project; reads the project's planning docs through its agentic-workflow bindings when it has them, and git, gh and Claude session logs otherwise. `/status now` (the default) is what changed since the owner was away, what waits on him, what was decided for him, what runs and what got done today, and writes a pane file for a tmux side pane; `/status arc` is the efforts as Now / Next / Later with progress and maintenance (or, without planning docs, recent sessions, open PRs and unmerged work), and writes arc.md. Also defines how the orchestrator asks the owner (the inbox) and how it ends every report. Use for /status, "status?", "where are we", "what was I doing", "what's open", "what waits on me", after a session was killed, and whenever you are about to ask the owner something.
 ---
 
 # Status
 
-**Input:** `now`, `arc`, or nothing (step 2 picks).
+**Input:** `now` (the default: a bare `/status` is `now`) or `arc`.
 **Output:** the view in the chat, in the template below and nothing else; `now` writes the pane file, `arc` writes
 arc.md, and both update the inbox and the seen time.
 
-**Read-only toward the repo and GitHub.** No commits, no doc edits (not even STATUS), no GitHub writes, no
-`git fetch`. Its only writes are in the state dir, outside git: `now.md`, `arc.md`, `waiting.md`, `decided.md`,
+**Be fast.** `/status now` is one gather call, then one Bash call that writes the files, then the view: no Read,
+grep or other exploration in between. Everything the template needs is in the gather output (at full level it
+prints the Status file whole) plus your own context. `arc` may read the Progress sections of the efforts in Now
+(step 1.3) and nothing else.
+
+**Read-only toward the repo and GitHub.** No commits, no doc edits (not even STATUS), no GitHub writes. The gather
+script runs one `git fetch` (remote-tracking refs only). The only writes are in the state dir `.status/` in the
+main checkout, which git ignores through `.git/info/exclude`: `now.md`, `arc.md`, `waiting.md`, `decided.md`,
 `seen`. When the view shows something wrong in the docs (STATUS stale, a ROADMAP row that disagrees), say so in one
 line under the view; fixing it is separate work.
 
@@ -21,7 +27,7 @@ Nothing here is project-specific. The gather script works out, from the folder y
 | What | How |
 |---|---|
 | Project key | the main checkout's folder name; a worktree maps to its main repo (`stocktimal-status-skill` → `stocktimal`); a plain folder is its own name |
-| State dir | `~/.local/state/overview/<project>/` (override: `STATUS_STATE_DIR`) |
+| State dir | `<main checkout>/.status/` (a worktree uses its main checkout's; a plain folder its own). The gather script creates it and adds `.status/` to the repo's `.git/info/exclude`, so it never shows in `git status` (override: `STATUS_STATE_DIR`) |
 | Owner | first word of `git config user.name` (Bram) |
 | Repo | the GitHub `origin` remote; none means the GitHub parts are skipped |
 | Level | **full** when the repo has `docs/agentic-workflow.md` and `docs/agentic-workflow.bindings.md`; **minimal** otherwise |
@@ -33,10 +39,11 @@ Nothing here is project-specific. The gather script works out, from the folder y
 | Housekeeping deploys | deploy runs from a schedule, a base-image or dependency bump, or a bot's merge (matched on the workflow name and run title). They are not deploys of the owner's work: never in Since you were away or Done today, only one count line under Maintenance |
 | Flag labels | `blocks-go-live` and `next` (the methodology's labels; a project without them simply has none flagged) |
 
-Gather command, from anywhere inside the project:
+Gather command, from anywhere inside the project, with the view:
 
 ```bash
-~/.claude/skills/status/gather.sh
+~/.claude/skills/status/gather.sh now    # a few seconds: one fetch, one gh call, local facts
+~/.claude/skills/status/gather.sh arc    # slower: PRs, prod lag, issues, worktrees, plans, roadmap
 ```
 
 **Full level, reading the Status file.** Projects name its sections differently; map them by meaning:
@@ -133,23 +140,29 @@ The convention for every report to the owner:
    - what finished since the away moment (step 2), and what finished today;
    - questions you put to the owner that are not in `waiting.md` (a gap: add them in step 1.4).
    A finished agent whose result you have not relayed yet goes under Since you were away, not under Running.
-2. **Run the gather command.** It prints: the project (key, level, repo, owner, state dir), the bindings (full
-   level), the project mode, deployed SHAs and the PRs the default branch is ahead by, open PRs with checks and a
-   bot mark, runs in progress, red runs on the default branch, merged and deployed today, flagged issues, the away
-   moment and everything that changed since then (incl. local commits), the other live Claude sessions in this
-   project's checkouts (from `claude agents --json`), the last Claude sessions here with their topics, worktrees
-   and unmerged branches, live plans and roadmap rows (full level), and the inbox and last day's decisions. A
-   section a project lacks is left out or says why.
+2. **Run the gather command for the view.** Both views print the project (key, level, repo, owner, state dir),
+   the bindings and the Status file whole (full level), the project mode, the other live Claude sessions in this
+   project's checkouts (from `claude agents --json`), the last Claude sessions here with their topics, and the
+   inbox and last day's decisions.
+   - `now` adds: the away moment; what changed since then (PRs merged on the fetched default branch, deploy runs,
+     failed runs on it, local commits); runs in progress and red on the default branch (from the last 60 runs);
+     merged and deployed today; effort hints (which plan files name each merged PR); and where the last session
+     left off (its checkout's branch, uncommitted files, commits not on the default branch).
+   - `arc` adds: the remote head, deployed SHAs and the PRs the default branch is ahead by, open PRs with checks
+     and a bot mark, red runs and the last deploy per workflow, issues and flagged issues, worktrees, unmerged
+     branches, live plans and roadmap rows (full level).
+   A section a project lacks is left out or says why. A section that says `unknown` stays unknown in the view.
 
    **The away moment** is the start of the most recent gap of 30 minutes or more between the owner's messages in
    this session (short messages after the gap do not end it), or the last `/status` if that is later than the
    gap's end. The gather script computes it from the session transcript and the `seen` file.
-3. **Full level: read the Status file whole** (it is short), or, with no Status file, the active plans' resume
-   blocks. For `arc`, also read the Progress / Build log / Slices section of each effort in Now, and nothing else
-   of the plans. **Minimal level:** read nothing else; the gather output is the whole picture.
+3. **Full level:** the Status file is in the gather output; do not read it again. With no Status file bound,
+   read the active plans' resume blocks. For `arc`, also read the Progress / Build log / Slices section of each
+   effort in Now, and nothing else of the plans. **Minimal level, and `now` at any level:** read nothing else;
+   the gather output is the whole picture.
 4. **Reconcile the inbox.** For each line in `waiting.md`:
-   - asked by this session and answered in your context, or settled on GitHub (the PR merged or closed, the deploy
-     ran): remove it;
+   - asked by this session and answered in your context, or settled (the PR shows as merged in the gather output,
+     the deploy ran): remove it;
    - older than 2 days: keep it, and mark it `(asked Ddd D Mmm, still open?)` in the view;
    - asked by a session that `claude agents` no longer lists: keep it, mark it `(asking session gone)`.
    Add any open question from step 1.1 that has no line. Drop lines older than 7 days from `decided.md`.
@@ -161,13 +174,11 @@ under their effort like any run. Only when the sessions section says `claude age
 the worktrees: files changed in the last 30 minutes in a worktree that is not yours means another session's agent
 at work; name it by its branch.
 
-## 2. Pick the view
+## 2. The view
 
-- `now` or `arc` given: that view.
-- Nothing given, mode `active`: `now` when anything runs, anything waits on the owner, or anything changed since he
-  was away; otherwise `arc`.
-- Nothing given, mode `maintenance`: `arc`, with the Maintenance block first and Now / Next / Later on one line
-  each (minimal level: Maintenance first, then the rest).
+- `arc` given: `arc`. Anything else, or nothing: `now`.
+- `arc` in mode `maintenance`: the Maintenance block first and Now / Next / Later on one line each (minimal level:
+  Maintenance first, then the rest).
 
 Under the view, one line: `Other view: /status arc` (or `now`). When the mode was inferred, one more line:
 `Mode inferred: <basis from the gather output>; set mode: in STATUS to fix it` (full level with a Status file) or
@@ -190,8 +201,8 @@ just the basis (otherwise).
 - **Times** in the owner's local time, `HH:MM` today, `Ddd D Mmm` otherwise.
 
 Grouping by effort (full level), first match wins:
-1. the Status file names the number in that effort's entry, or one of the effort's plans names it
-   (`grep -lE '#391\b' <plans dir>*.md`);
+1. the Status file names the number in that effort's entry, or one of the effort's plans names it (the gather
+   output's effort hints for `now`; at `arc`, `grep -lE '#391\b' <plans dir>*.md` when needed);
 2. it carries `blocks-go-live`: the effort the Status file ties go-live to (e.g. a customer's test period); with
    none, it is a flagged issue under Maintenance;
 3. it refers to an item already grouped (`Refs #385` where #385 is grouped), or its title or body names the effort.
@@ -210,10 +221,10 @@ leave the effort headings out and list the items directly.
 ## Since you were away (<HH:MM>, <duration>)
 - Finished: <agent's work, in domain words> · <verdict in a few words>
 - Merged: <PR name (#n)>; <PR name (#n)>
-- Committed: <n> commits on <branch>: <the gist in a few words>   (only when there is no GitHub repo)
+- Committed: <n> commits on <branch>: <the gist in a few words>   (only when there is no remote)
 - Deployed: <env> HH:MM (<what, as names>) | <env> FAILED HH:MM
 - Red on main: <workflow> since HH:MM
-- New: <n> items in your inbox (<numbers>); <n> decided for you; <n> issues filed
+- New: <n> items in your inbox (<numbers>); <n> decided for you; <n> issues filed (by your sessions)
 (nothing: "Nothing changed since HH:MM.")
 
 ## Where you left off                      (minimal level only)
@@ -242,7 +253,7 @@ Standing (STATUS): <short names, semicolon-separated>
 - <Effort name>: <PR name (#n)>; <PR name (#n)>
 - Deployed: dev HH:MM, prod HH:MM (prod <sha>)
 
-Maintenance: <bot PRs, prod behind main, red runs, in a few words> → /status arc
+Maintenance: <red on main, housekeeping deploys, in a few words> → /status arc
 Other view: /status arc
 ```
 
@@ -263,10 +274,13 @@ Other view: /status arc
   sessions last. The session running `/status` is never under Other sessions.
 - **Done today:** PRs merged since midnight grouped by effort (or, without GitHub, today's commits in a few
   words), and the successful deploys. One line per effort. Leave the block out when nothing was done.
-- **Maintenance:** one line pointing to `arc`, housekeeping deploys as a count in it; leave it out when there is
-  nothing.
+- **Maintenance:** one line pointing to `arc`, from what `now` gathered only (red on main, housekeeping deploys as
+  a count); bot PRs and prod lag are `arc`'s. Leave it out when there is nothing.
+- **Merged** comes from the default branch after the fetch: `Title (#n)` lines. A `direct commit:` line is not a
+  merge; mention it only under Done today when it says something (a STATUS update about a deploy does). When the
+  gather output says the fetch failed, add `(origin not fetched)` to the Merged line.
 
-Then write the files (step 6) and show the view.
+Then write the files (step 6) in one Bash call and show the view.
 
 ## 5. `arc`
 
@@ -348,13 +362,14 @@ Inbox: <n> of 7 → /status now
 
 ## 6. The state files
 
-All in the state dir, written atomically (`mkdir -p` the dir, `cat > "$f.tmp" <<'EOF' … EOF` then
-`mv "$f.tmp" "$f"`), so a pane never shows half a file:
+All in the state dir from the gather output (`<main checkout>/.status/`; it already exists), written atomically
+(`cat > "$f.tmp" <<'EOF' … EOF` then `mv "$f.tmp" "$f"`), so a pane never shows half a file. Write the view file,
+any inbox or decided changes and `seen` in one Bash call:
 
 | File | Written by | Content |
 |---|---|---|
-| `now.md` | `/status now`, and a bare `/status` that picked `now` | the `now` view, byte for byte |
-| `arc.md` | `/status arc`, and a bare `/status` that picked `arc` | the `arc` view, byte for byte |
+| `now.md` | `/status now` and a bare `/status` | the `now` view, byte for byte |
+| `arc.md` | `/status arc` | the `arc` view, byte for byte |
 | `waiting.md` | the asking procedure; step 1.4 | the inbox |
 | `decided.md` | Decide and notify; step 1.4 prunes | the decisions |
 | `seen` | every `/status` run, after the view is shown | the current time, `date -Iseconds` |
@@ -367,14 +382,14 @@ write wins.
 
 **Keeping it fresh.** After `/status now` has run once in a session, rewrite `now.md` (without printing the view)
 whenever one of its lines changes: an agent starts or reports back, a question is asked or answered, a PR merges, a
-deploy finishes. Reuse what you know; run the gather command again only when GitHub state changed. Do not touch
+deploy finishes. Reuse what you know; run `gather.sh now` again only when GitHub state changed. Do not touch
 `seen` then: only a `/status` the owner sees moves it.
 
-Opening the pane (from inside tmux, in the project):
+Opening the pane (from inside tmux, in the project; in a plain folder use `$PWD` for `p`):
 
 ```bash
-p=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
-tmux split-window -h -l 72 "watch -t -n5 cat ~/.local/state/overview/$p/now.md"
+p=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
+tmux split-window -h -l 72 "watch -t -n5 cat $p/.status/now.md"
 # with glow installed:
-tmux split-window -h -l 72 "watch -t -c -n5 glow -s dark -w 70 ~/.local/state/overview/$p/now.md"
+tmux split-window -h -l 72 "watch -t -c -n5 glow -s dark -w 70 $p/.status/now.md"
 ```
