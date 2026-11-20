@@ -9,7 +9,7 @@ link() {
   local dest="$2"
 
   if [[ -L "$dest" || ! -e "$dest" ]]; then
-    ln -sf "$src" "$dest"
+    ln -sfn "$src" "$dest"
     echo "✅ Linked $dest → $src"
   else
     echo "⚠️  Skipped $dest (already exists and is not a symlink)"
@@ -29,6 +29,15 @@ link "./scripts/wsl-backup.sh" "$HOME/.local/bin/wsl-backup"
 link ".gitconfig" "$HOME/.gitconfig"
 link ".gitignore_global" "$HOME/.gitignore_global"
 link ".gitmessage" "$HOME/.gitmessage"
+
+# Claude Code skills: each folder under claude/skills/ becomes ~/.claude/skills/<name>.
+# Existing plain folders there (skills not kept in dotfiles) are left alone.
+mkdir -p "$HOME/.claude/skills"
+for skill in "$DOTFILES_DIR"/claude/skills/*/; do
+  [[ -d "$skill" ]] || continue
+  name="$(basename "$skill")"
+  link "claude/skills/$name" "$HOME/.claude/skills/$name"
+done
 
 # .config files and directories
 mkdir -p "$HOME/.config"
