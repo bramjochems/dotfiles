@@ -23,10 +23,34 @@
 # Optional overrides (env): STATUS_STATE_DIR, STATUS_SINCE (away moment, ISO), STATUS_PROJECT (key),
 # STATUS_OWNER (display name), STATUS_DEPLOY_RE (deploy workflow regex),
 # STATUS_FLAG_LABELS (default: "blocks-go-live next").
+#
+# Rendering (render.py, next to this script):
+#   gather.sh now --render [--seen] [--running "<what> · <who> · since HH:MM"]… [--ask "<inbox line>"]…
+# writes the finished `now` view to <state dir>/now.md and prints it: the plain-shell entry point
+# (an alias, a tmux pane) and what /status runs. --seen also moves the away moment (only a /status
+# the owner sees should); --running adds this session's own work; --ask appends an inbox line first.
+#   gather.sh arc --render
+# prints the facts plus pre-rendered parts (efforts parsed from STATUS, open PRs by effort, the
+# Maintenance lines); the model writes the rest of arc.
 set -uo pipefail
 
-view=${1:-now}
-case "$view" in now|arc) ;; *) echo "usage: gather.sh [now|arc]" >&2; exit 2 ;; esac
+usage() { echo 'usage: gather.sh [now|arc] [--render [--seen] [--running TEXT]… [--ask TEXT]…]' >&2; exit 2; }
+view=now; render=0; rargs=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    now|arc) view=$1 ;;
+    --render) render=1 ;;
+    --seen) rargs+=(--seen) ;;
+    --running|--ask) [ $# -ge 2 ] || usage; rargs+=("$1" "$2"); shift ;;
+    *) usage ;;
+  esac
+  shift
+done
+if [ "$render" = 1 ]; then
+  self=$(readlink -f "${BASH_SOURCE[0]}")
+  "$self" "$view" | python3 -I "$(dirname "$self")/render.py" "$view" ${rargs[@]+"${rargs[@]}"}
+  exit "${PIPESTATUS[1]}"
+fi
 
 gh_() { GH_PROMPT_DISABLED=1 timeout -k 1 "${GH_TIMEOUT:-8}" gh "$@" 2>/dev/null; }
 or_none() { local out; out=$(cat); [ -n "$out" ] && printf '%s\n' "$out" || echo "  none"; }
@@ -390,6 +414,8 @@ else
     echo "$name · $kind · $st · last active $last · branch $b · $cwd"
   done | { out=$(cat); [ -n "$out" ] && printf '%s\n' "$out" || echo "none"; }
 fi
+self_name=$(printf '%s' "$agents" | jq -r --arg s "$self_sid" '.[]? | select(.sessionId == $s) | .name // empty' 2>/dev/null)
+echo "this session: ${self_name:-none (not run from a Claude session)}"
 
 echo; echo "## last-sessions (recent Claude sessions started in this project, newest first; this session left out: last active · topic · branch · live? · cwd)"
 others | head -"$([ "$view" = arc ] && echo 6 || echo 3)" | while IFS=$'\t' read -r f cwd; do
@@ -508,6 +534,18 @@ if [ "$view" = arc ]; then
         started { exit }' | or_none
     fi
   fi
+fi
+
+# ---------------------------------------------------------------- left for later (written by /wrap)
+echo; echo "## left-for-later ($state_dir/next.md; handoff.md is fresh when written at or after the newest earlier session's last activity, 10 min slack)"
+grep -E '^- ' "$state_dir/next.md" 2>/dev/null | or_none
+if [ -f "$state_dir/handoff.md" ]; then
+  hm=$(stat -c %Y "$state_dir/handoff.md"); lf=$(others | head -1 | cut -f1); la=0
+  [ -n "$lf" ] && la=$(stat -c %Y "$lf")
+  fresh=stale; [ "$hm" -ge $((la - 600)) ] && fresh=fresh
+  echo "handoff: $state_dir/handoff.md · written $(date -d "@$hm" '+%a %d %b %H:%M') · $fresh"
+else
+  echo "handoff: none"
 fi
 
 # ---------------------------------------------------------------- inbox

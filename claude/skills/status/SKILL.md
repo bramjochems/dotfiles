@@ -6,13 +6,29 @@ description: Show where the current project stands in one fixed, screen-sized sh
 # Status
 
 **Input:** `now` (the default: a bare `/status` is `now`) or `arc`.
-**Output:** the view in the chat, in the template below and nothing else; `now` writes the pane file, `arc` writes
-arc.md, and both update the inbox and the seen time.
+**Output:** `now`: the script renders the view, writes the pane file and prints it; you add a short reply.
+`arc`: you write the view in the template below; it writes arc.md. Both update the inbox and the seen time.
 
-**Be fast.** `/status now` is one gather call, then one Bash call that writes the files, then the view: no Read,
-grep or other exploration in between. Everything the template needs is in the gather output (at full level it
-prints the Status file whole) plus your own context. `arc` may read the Progress sections of the efforts in Now
-(step 1.3) and nothing else.
+**Be fast: `/status now` is exactly one Bash call, then a reply of at most three lines.** The script's output *is*
+the view: never render or repeat it in the chat, and no Read, grep or other call before or after. The call:
+
+```bash
+~/.claude/skills/status/gather.sh now --render --seen \
+  --running "<what, in domain words> · <agent | workflow | background command> · since HH:MM" \
+  --ask "<Effort>: <question>? <option> / <option> → <recommendation>. Blocks: <what>. [<link name>](<url>)"
+```
+
+- `--running`, once per item from step 1.1 that has not reported back (none: leave it out). It lands under
+  Running › This session; the script cannot see your subagents.
+- `--ask`, only for a question you are about to put to the owner (it appends the inbox line with date and session
+  name; refused when the inbox is full). Then ask it in your reply.
+- In the same call, before the script, remove inbox lines this session saw answered (`sed -i '/<unique words>/d'
+  <state dir>/waiting.md`).
+- The reply: only what the script cannot know and the owner needs now: an agent that finished and whose result
+  you have not relayed (TL;DR + verdict), the question you just asked, a doc that looks wrong. Nothing to add:
+  no reply text at all beyond `Done.`.
+
+`arc` may read the Progress sections of the efforts in Now (step 1.3) and nothing else.
 
 **Read-only toward the repo and GitHub.** No commits, no doc edits (not even STATUS), no GitHub writes. The gather
 script runs one `git fetch` (remote-tracking refs only). The only writes are in the state dir `.status/` in the
@@ -42,9 +58,14 @@ Nothing here is project-specific. The gather script works out, from the folder y
 Gather command, from anywhere inside the project, with the view:
 
 ```bash
-~/.claude/skills/status/gather.sh now    # a few seconds: one fetch, one gh call, local facts
-~/.claude/skills/status/gather.sh arc    # slower: PRs, prod lag, issues, worktrees, plans, roadmap
+~/.claude/skills/status/gather.sh now --render   # ~2 s: one fetch, one gh call, local facts; renders now.md
+~/.claude/skills/status/gather.sh arc --render   # ~5 s: PRs, prod lag, issues, worktrees, plans, roadmap,
+                                                 # plus pre-rendered parts (efforts, PRs by effort, Maintenance)
+~/.claude/skills/status/gather.sh now            # the raw facts only, as sections
 ```
+
+`gather.sh now --render` works without Claude too (an alias, a tmux pane): it writes and prints the view but does
+not move `seen` (only `--seen` does, which `/status` passes). The renderer is `render.py` next to the script.
 
 **Full level, reading the Status file.** Projects name its sections differently; map them by meaning:
 - *Building now*: "Building now", "▶ Now — …", "Where we are", "In flight", and any effort section above the
@@ -105,6 +126,9 @@ text** (the link's URL not counted). Detail lives behind the link (PR, plan, scr
 2. Ask in the chat: the same question, options and recommendation, plus whatever detail the owner needs.
 3. When he answers, remove the line, then act. A partial answer rewrites the line to what is still open.
 
+Step 1 is `gather.sh now --render --ask "<line without date and session>"` (it adds both) when you are about to
+show the view anyway; otherwise append the line yourself in the shape above.
+
 **Inbox full (7 items):** do not start new work that will need something from the owner; work that needs nothing
 from him continues. When a question comes up in running work, park that work (it goes on the Parked line of your
 report, with the question kept in its plan or scratch file) and ask when a slot frees. The one exception is a
@@ -132,6 +156,9 @@ The convention for every report to the owner:
 ```
 
 ## 1. Gather
+
+For `now`, steps 1.1 and 1.4 feed the one call (`--running`, `--ask`, the `sed`); steps 1.2 and 1.3 are the
+script's. For `arc`, all four steps apply.
 
 1. **Your own session first.** You are the orchestrator, so the most current facts are in your own context.
    Write down, before any tool call:
@@ -200,17 +227,24 @@ just the basis (otherwise).
   `unknown (gh unavailable)`; never fill from memory.
 - **Times** in the owner's local time, `HH:MM` today, `Ddd D Mmm` otherwise.
 
-Grouping by effort (full level), first match wins:
+Grouping by effort (full level), first match wins. For `now` the script does this mechanically (the Status
+file's entry names the number; a plan that names it is linked from an entry, or carries the effort's code such as
+E6, or its file name starts with the effort's first word, else the plan's own title is the group; the title refers
+to a grouped number or starts with the effort's first word; else **Other**). Less clever than reading, on purpose.
+For `arc`, the pre-rendered section groups open PRs the same way; regroup only what is plainly wrong.
 1. the Status file names the number in that effort's entry, or one of the effort's plans names it (the gather
    output's effort hints for `now`; at `arc`, `grep -lE '#391\b' <plans dir>*.md` when needed);
 2. it carries `blocks-go-live`: the effort the Status file ties go-live to (e.g. a customer's test period); with
    none, it is a flagged issue under Maintenance;
 3. it refers to an item already grouped (`Refs #385` where #385 is grouped), or its title or body names the effort.
 A CI run or deploy goes with the PRs it carries when that is known (a deploy of main carries what prod lacks).
-Everything else is **Ad hoc**: it needs no plan or issue to be listed. At minimal level everything is Ad hoc, so
+Everything else is **Ad hoc** (**Other** in the script's `now`): it needs no plan or issue to be listed. At minimal level everything is Ad hoc, so
 leave the effort headings out and list the items directly.
 
 ## 4. `now`
+
+The script (`render.py`) renders this shape; it is documented here so the rules stay one place. Change the
+renderer, not the chat, when the shape needs to change.
 
 ```markdown
 <!-- overview:now project=<project> level=<full|minimal> mode=<mode> updated=<ISO time> running=<n> waiting=<n> inbox_full=<yes|no> -->
@@ -219,7 +253,6 @@ leave the effort headings out and list the items directly.
 **INBOX FULL (7 of 7): no new work that needs you; answer one to free a slot.**
 
 ## Since you were away (<HH:MM>, <duration>)
-- Finished: <agent's work, in domain words> · <verdict in a few words>
 - Merged: <PR name (#n)>; <PR name (#n)>
 - Committed: <n> commits on <branch>: <the gist in a few words>   (only when there is no remote)
 - Deployed: <env> HH:MM (<what, as names>) | <env> FAILED HH:MM
@@ -231,6 +264,11 @@ leave the effort headings out and list the items directly.
 - <Ddd D Mmm HH:MM> · <last session's topic> · <branch> (· still open)
 - <one line: uncommitted files or an unmerged branch in that checkout, if any>
 
+## Left for later (<n>)                    (from .status/next.md, written by /wrap)
+- <first four items>
++N more (.status/next.md)
+Handoff for the next agent (<Ddd D Mmm HH:MM>): .status/handoff.md   (when it is newer than the last session)
+
 ## Waiting on <Owner> (<n> of 7)
 1. <line from waiting.md, without the date and session; age mark if older than 2 days>
 Standing (STATUS): <short names, semicolon-separated>
@@ -239,11 +277,11 @@ Standing (STATUS): <short names, semicolon-separated>
 - HH:MM <Effort>: <what was chosen>
 
 ## Running
-**<Effort name>**
-- <what, in domain words> · <agent / PR / CI / session> · since HH:MM
+**This session**
+- <--running items>
 
-**Ad hoc**
-- <what> · since HH:MM
+**CI and deploys**
+- <workflow> on <branch>[ ×n] · since HH:MM
 
 **Other sessions**
 - <session name> · <busy | idle since HH:MM | blocked: needs input> · <branch>
@@ -258,9 +296,10 @@ Other view: /status arc
 ```
 
 - **The INBOX FULL line** appears only when `waiting.md` holds 7 items; otherwise leave it and its blank line out.
-- **Since you were away** covers the time since the away moment from the gather output, and leaves out what the
-  owner already saw (his own merges, things you told him after the gap ended). At most six lines, kinds in
-  the order above, empty kinds left out. Its `New` line counts inbox and decided lines dated after the away moment.
+- **Since you were away** covers the time since the away moment from the gather output. The script cannot tell
+  what the owner already saw, so his own merges show too; an agent that finished is your reply's, not the view's.
+  At most four merges named, then `+N more (Done today)`. Its `New` line counts inbox and decided lines dated after
+  the away moment.
 - **Where you left off** (minimal level) answers "what was I doing": the newest entry of the last-sessions section
   (this session is already left out), and what that checkout still holds uncommitted or unmerged. Leave it out
   when there is no earlier session.
@@ -270,8 +309,10 @@ Other view: /status arc
   they are an inbox line).
 - **Decided for you** is `decided.md`'s last 24 hours, newest first, at most five lines, then `+N more
   (decided.md)`. Leave the block out when it is empty.
-- **Running** is step 1.1, the in-progress runs, and the other sessions; group by effort, Ad hoc, then Other
-  sessions last. The session running `/status` is never under Other sessions.
+- **Left for later** is `next.md` (see /wrap), first four items and a count; the handoff line shows only while
+  `handoff.md` was written at or after the newest earlier session's last activity (10 minutes slack).
+- **Running** is the `--running` items, the in-progress runs, and the other sessions, in that order. The session
+  running `/status` is never under Other sessions.
 - **Done today:** PRs merged since midnight grouped by effort (or, without GitHub, today's commits in a few
   words), and the successful deploys. One line per effort. Leave the block out when nothing was done.
 - **Maintenance:** one line pointing to `arc`, from what `now` gathered only (red on main, housekeeping deploys as
@@ -280,7 +321,7 @@ Other view: /status arc
   merge; mention it only under Done today when it says something (a STATUS update about a deploy does). When the
   gather output says the fetch failed, add `(origin not fetched)` to the Merged line.
 
-Then write the files (step 6) in one Bash call and show the view.
+The script writes `now.md` and (with `--seen`) `seen`, and prunes `decided.md`; there is no separate write step.
 
 ## 5. `arc`
 
@@ -363,16 +404,18 @@ Inbox: <n> of 7 → /status now
 ## 6. The state files
 
 All in the state dir from the gather output (`<main checkout>/.status/`; it already exists), written atomically
-(`cat > "$f.tmp" <<'EOF' … EOF` then `mv "$f.tmp" "$f"`), so a pane never shows half a file. Write the view file,
-any inbox or decided changes and `seen` in one Bash call:
+(`cat > "$f.tmp" <<'EOF' … EOF` then `mv "$f.tmp" "$f"`), so a pane never shows half a file. For `now` the script
+writes them; for `arc`, write arc.md, any inbox or decided changes and `seen` in one Bash call:
 
 | File | Written by | Content |
 |---|---|---|
-| `now.md` | `/status now` and a bare `/status` | the `now` view, byte for byte |
+| `now.md` | `gather.sh now --render` (`/status now`, a bare `/status`, the shell) | the `now` view |
 | `arc.md` | `/status arc` | the `arc` view, byte for byte |
 | `waiting.md` | the asking procedure; step 1.4 | the inbox |
 | `decided.md` | Decide and notify; step 1.4 prunes | the decisions |
-| `seen` | every `/status` run, after the view is shown | the current time, `date -Iseconds` |
+| `seen` | every `/status` run (`--seen`), after the view is shown | the current time, `date -Iseconds` |
+| `next.md` | `/wrap` | follow-ups for later, at most 10 |
+| `handoff.md`, `handoff.prev.md` | `/wrap`, when work is half-finished | the resume point for the next agent |
 
 Line 1 of `now.md` and `arc.md` is a machine-readable HTML comment (the cross-project overview reads `updated=`,
 `running=`, `waiting=`, `inbox_full=`, `level=` and `mode=`; `running` counts the lines under Running, `waiting`
@@ -380,10 +423,9 @@ the numbered items); line 2 is the heading with the time, so a stale pane is vis
 tables, so it reads well in `glow` and in `cat`. The files are per project, not per worktree: the last session to
 write wins.
 
-**Keeping it fresh.** After `/status now` has run once in a session, rewrite `now.md` (without printing the view)
-whenever one of its lines changes: an agent starts or reports back, a question is asked or answered, a PR merges, a
-deploy finishes. Reuse what you know; run `gather.sh now` again only when GitHub state changed. Do not touch
-`seen` then: only a `/status` the owner sees moves it.
+**Keeping it fresh.** After `/status now` has run once in a session, rerun `gather.sh now --render --running …
+>/dev/null` (no `--seen`, output discarded) whenever one of its lines changes: an agent starts or reports back, a
+question is asked or answered, a PR merges, a deploy finishes. Only a `/status` the owner sees moves `seen`.
 
 Opening the pane (from inside tmux, in the project; in a plain folder use `$PWD` for `p`):
 
@@ -392,4 +434,9 @@ p=$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")
 tmux split-window -h -l 72 "watch -t -n5 cat $p/.status/now.md"
 # with glow installed:
 tmux split-window -h -l 72 "watch -t -c -n5 glow -s dark -w 70 $p/.status/now.md"
+# a pane that refreshes the facts itself (a fetch and a gh call each minute):
+tmux split-window -h -l 72 "watch -t -n60 ~/.claude/skills/status/gather.sh now --render"
 ```
+
+From a plain shell, the same view without Claude: `~/.claude/skills/status/gather.sh now --render` (an alias such
+as `alias st='~/.claude/skills/status/gather.sh now --render --seen'` if a look from the shell should count as seen).
