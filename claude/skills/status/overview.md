@@ -35,13 +35,14 @@ Quiet (<n>: declared maintenance, or nothing in 4 weeks)
 - **<name>** · <mode> · last <commit | session> <when>
 ```
 
-- **Sorted** by last activity: your last message, a session's last write, or the newest local commit, whichever is
-  latest.
+- **Sorted** by your last typed message; projects where you never typed (in 90 days) below those, by their last
+  activity of any kind (a session's last write or the newest local commit).
 - **Mode:** `mode:` in the Status file, else active when you typed in a session there in the last 14 days.
 - **Working towards:** the Status file's efforts in building now; else the active plans (or their resume blocks);
   else the first `.status/next.md` item; else the newest session topic; else the README.
 - **Attention**, at most one, first that applies: the inbox (`waiting.md`) count; red on main per the last
-  `now.md`/`arc.md` (with its date, since the overview does not ask GitHub); uncommitted files in the checkouts.
+  `now.md`/`arc.md` (with its date, since the overview does not ask GitHub); `standing: N`, the items in the Status
+  file's waiting-on-the-owner section; uncommitted files in the checkouts.
 - **Hours** from transcript timestamps: gaps under 15 minutes count as active, longer gaps not at all. *You*: the gaps
   between your own typed messages, merged across the project's sessions; *agents*: between assistant and tool events
   in the sessions and their subagents, merged (wall clock with an agent at work, so parallel agents do not add up).
@@ -71,7 +72,7 @@ Bullets, not bare lines: markdown joins bare consecutive lines into one paragrap
 - **Goal**, in this order of sources: the Status file, roadmap and live plans (full level); otherwise the README's
   first paragraph. *Working towards* comes from the efforts in building now, the active plans, `next.md`, or the
   session topics. No source for the purpose: say what the sessions were about, `purpose unknown (no README)`.
-- **Recent** from the commits (merge subjects are the PRs; dependency bumps are already left out, and Status-file
+- **Recent** from the commits (10 shown with a Status file or roadmap, 15 without; merge subjects are the PRs; dependency bumps are already left out, and Status-file
   updates say where things stand rather than what was done) and the session topics. Group, do not list: "Run page
   speed: one parse per worker (#385, #398)", not one line per commit. A PR or issue keeps its name before its
   number; a plan code gets its name (`MCP over OAuth (E16)`), never a bare `#123` or `E16`.

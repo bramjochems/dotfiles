@@ -49,7 +49,7 @@ SKIP_DIRS = {"node_modules", ".venv", "venv", "__pycache__", "dist", "build", "t
 BUMP = re.compile(r"^(build|chore)\(deps[^)]*\)|^bump |^\[bot\]|dependabot|renovate", re.I)
 STATEISH = re.compile(r"^(current state|current|state|status|where we are|where things stand)\b", re.I)
 ELSEWHERE = re.compile(r"with someone|blocked on|on hold", re.I)
-CAP_COMMITS, CAP_SESSIONS, CAP_NEXT, CAP_ROWS = 15, 8, 5, 8
+CAP_COMMITS, CAP_COMMITS_DOCS, CAP_SESSIONS, CAP_NEXT, CAP_ROWS = 15, 10, 8, 5, 8
 
 
 # ------------------------------------------------------------------ config
@@ -552,6 +552,11 @@ class Project:
     def last_activity(self):
         return max([self.last_owner(), self.git.get("last_commit", 0)] + [s["mtime"] for s in self.sessions])
 
+    def order(self):
+        """Your last message first; projects where you never typed (90 d) below, by any activity."""
+        lo = self.last_owner()
+        return (0, -lo) if lo else (1, -self.last_activity())
+
     def mode(self):
         d = self.docs.get("mode")
         if d:
@@ -588,6 +593,9 @@ class Project:
         if self.state.get("red"):
             at = self.state["red_at"]
             return f"red CI: {R.cut(self.state['red'], 30)} (as of {R.when(at, True)})"
+        st = self.docs.get("waiting", [])
+        if st:  # the Status file's waiting-on-the-owner section, when the inbox is empty
+            return f"standing: {len(st)}"
         d = self.git.get("dirty", [])
         if d:
             n = sum(x[1] for x in d)
@@ -702,7 +710,7 @@ def build(lite=False):
 
 # ------------------------------------------------------------------ the list (script-rendered)
 def render_list(projects, others):
-    live = sorted((p for p in projects if not p.quiet()), key=lambda p: -p.last_activity())
+    live = sorted((p for p in projects if not p.quiet()), key=Project.order)
     quiet = sorted((p for p in projects if p.quiet()), key=lambda p: -p.last_activity())
     t = datetime.fromtimestamp(NOW).astimezone()
     out = [f"<!-- overview:all updated={t.isoformat(timespec='seconds')} projects={len(projects)} "
@@ -741,7 +749,7 @@ def render_list(projects, others):
 # ------------------------------------------------------------------ facts for the digest
 def render_facts(projects, others, excludes):
     out = ["", "## facts for the digest (one block per project in the list above; Quiet and Other have none)"]
-    live = sorted((p for p in projects if not p.quiet()), key=lambda p: -p.last_activity())
+    live = sorted((p for p in projects if not p.quiet()), key=Project.order)
     for p in live:
         d, g, s = p.docs, p.git, p.state
         mode, basis = p.mode()
@@ -767,10 +775,11 @@ def render_facts(projects, others, excludes):
             out += [f"  {l}" for l in blk]
         if p.kind == "git":
             c = g.get("commits", [])
+            cap = CAP_COMMITS_DOCS if d["status"] or d["roadmap"] else CAP_COMMITS
             bump = f"; {g['bumps']} dependency bumps left out" if g.get("bumps") else ""
             out.append(f"commits on {g.get('dref')} (first parent), last 4 weeks: {len(c)}"
-                       f"{f', newest {CAP_COMMITS} shown' if len(c) > CAP_COMMITS else ''}{bump}")
-            out += [f"  {stamp(t)} · {R.cut(sj, 110)}" for t, sj in c[:CAP_COMMITS]]
+                       f"{f', newest {cap} shown' if len(c) > cap else ''}{bump}")
+            out += [f"  {stamp(t)} · {R.cut(sj, 110)}" for t, sj in c[:cap]]
             if c:
                 src.append("commits")
         allss = [x for x in p.sessions if x["mtime"] >= MONTH]
