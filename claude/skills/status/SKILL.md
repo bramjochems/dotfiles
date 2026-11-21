@@ -27,7 +27,7 @@ the view: never render or repeat it in the chat, and no Read, grep or other call
 - In the same call, before the script, remove inbox lines this session saw answered (`sed -i '/<unique words>/d'
   <state dir>/waiting.md`).
 - The reply: only what the script cannot know and the owner needs now: an agent that finished and whose result
-  you have not relayed (TL;DR + verdict), the question you just asked, a doc that looks wrong. Nothing to add:
+  you have not relayed (its gist, plus whether the details are worth reading), the question you just asked, a doc that looks wrong. Nothing to add:
   no reply text at all beyond `Done.`.
 
 `arc` may read the Progress sections of the efforts in Now (step 1.3) and nothing else.
@@ -145,8 +145,9 @@ Lines older than 7 days are dropped when `/status` reconciles.
 
 The convention for every report to the owner:
 
-- **Finished work comes as a TL;DR first** (one to three lines), then a verdict: `Worth reading the details? <yes |
-  no>: <why, in one line>`. Details only when he asks.
+- **Finished work opens with its gist** (one to three lines; no "TL;DR" label needed). When there are details
+  behind it (a report, a diff, a long analysis), add whether they are worth reading and why, in one line. Details
+  only when he asks.
 - **Names before numbers** (step 3).
 - **Every report ends with the same block**, one line each, names not numbers, `none` when empty:
 
