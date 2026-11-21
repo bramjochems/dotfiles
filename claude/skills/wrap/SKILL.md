@@ -50,8 +50,9 @@ EOF
 
 A decision, a go, a command for him to run, something to send: the /status inbox procedure (`waiting.md`, at most
 7, one line, ~150 characters; see `~/.claude/skills/status/SKILL.md` § The inbox). Append in that shape, with this
-session's name from `claude agents`. Inbox full: the question goes in the handoff's open questions instead, and
-the reply says so.
+session's name from `claude agents`, and ask each question in the reply as the complete block from that section
+(at most three; the inbox line is only the index). Inbox full: the question goes in the handoff's open questions
+instead, and the reply says so.
 
 ## 4. Half-finished → `handoff.md`
 
@@ -90,7 +91,7 @@ EOF
 ## 5. Reply
 
 ```markdown
-Wrapped: <n> left for later (<n> new, <n> dropped as done[, <n> pruned]); <handoff written | no handoff: nothing half-finished>; <n> asked in your inbox.
+Wrapped: <n> left for later (<n> new, <n> dropped as done[, <n> pruned]); <handoff written | no handoff: nothing half-finished>; <n> asked in your inbox (each asked in full below).
 <one line per thing he should know before closing: uncommitted work, something still running>
 Next time: start fresh with `claude`, then `/status` (not `claude --resume`).
 ```
