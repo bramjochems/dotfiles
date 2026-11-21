@@ -1,11 +1,13 @@
 ---
 name: status
-description: Show where the current project stands in one fixed, screen-sized shape, and keep the owner's inbox. Works in every project; reads the project's planning docs through its agentic-workflow bindings when it has them, and git, gh and Claude session logs otherwise. `/status now` (the default) is what changed since the owner was away, what waits on him, what was decided for him, what runs and what got done today, and writes a pane file for a tmux side pane; `/status arc` is the efforts as Now / Next / Later with progress and maintenance (or, without planning docs, recent sessions, open PRs and unmerged work), and writes arc.md. Also defines how the orchestrator asks the owner (the inbox) and how it ends every report. Use for /status, "status?", "where are we", "what was I doing", "what's open", "what waits on me", after a session was killed, and whenever you are about to ask the owner something.
+description: Show where the current project stands in one fixed, screen-sized shape, and keep the owner's inbox. Works in every project; reads the project's planning docs through its agentic-workflow bindings when it has them, and git, gh and Claude session logs otherwise. `/status now` (the default) is what changed since the owner was away, what waits on him, what was decided for him, what runs and what got done today, and writes a pane file for a tmux side pane; `/status arc` is the efforts as Now / Next / Later with progress and maintenance (or, without planning docs, recent sessions, open PRs and unmerged work), and writes arc.md; `/status overview` is every project at once (a list plus a short digest each, read-only). Also defines how the orchestrator asks the owner (the inbox) and how it ends every report. Use for /status, "status?", "where are we", "how do all my projects stand", "what was I doing", "what's open", "what waits on me", after a session was killed, and whenever you are about to ask the owner something.
 ---
 
 # Status
 
-**Input:** `now` (the default: a bare `/status` is `now`) or `arc`.
+**Input:** `now` (the default: a bare `/status` is `now`), `arc`, `arc <project>` (that project's arc from any folder)
+or `overview` (every project at once). **For `overview` and `arc <project>`, read `overview.md` next to this file**;
+the rest of this file is `now` and `arc`.
 **Output:** `now`: the script renders the view, writes the pane file and prints it; you add a short reply.
 `arc`: you write the view in the template below; it writes arc.md. Both update the inbox and the seen time.
 
@@ -203,7 +205,7 @@ at work; name it by its branch.
 
 ## 2. The view
 
-- `arc` given: `arc`. Anything else, or nothing: `now`.
+- `arc` given: `arc`. `overview` given: overview.md. Anything else, or nothing: `now`.
 - `arc` in mode `maintenance`: the Maintenance block first and Now / Next / Later on one line each (minimal level:
   Maintenance first, then the rest).
 

@@ -2,6 +2,7 @@
 # gather.sh — the facts /status reads, as plain sections. One script for every project.
 #
 #   ~/.claude/skills/status/gather.sh [now|arc]      (default: now)
+#   ~/.claude/skills/status/gather.sh overview       (every project, read-only: overview.py, overview.md)
 #
 # `now` is fast (a few seconds): one soft `git fetch`, one `gh run list`, local git, `claude agents`,
 # session transcripts and the state files. `arc` adds everything slow: open PRs with checks, prod lag,
@@ -29,25 +30,37 @@
 # writes the finished `now` view to <state dir>/now.md and prints it: the plain-shell entry point
 # (an alias, a tmux pane) and what /status runs. --seen also moves the away moment (only a /status
 # the owner sees should); --running adds this session's own work; --ask appends an inbox line first.
-#   gather.sh arc --render
+#   gather.sh arc [<project>] --render
+# (<project>: a name from the overview's list, e.g. stocktimal or medi-invest/website, from any folder)
 # prints the facts plus pre-rendered parts (efforts parsed from STATUS, open PRs by effort, the
 # Maintenance lines); the model writes the rest of arc.
 set -uo pipefail
 
-usage() { echo 'usage: gather.sh [now|arc] [--render [--seen] [--running TEXT]… [--ask TEXT]…]' >&2; exit 2; }
-view=now; render=0; rargs=()
+usage() { echo 'usage: gather.sh [now|arc [<project>]] [--render [--seen] [--running TEXT]… [--ask TEXT]…] | overview [--digest]' >&2; exit 2; }
+view=now; render=0; rargs=(); target=""; digest=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    now|arc) view=$1 ;;
+    now|arc|overview) view=$1 ;;
     --render) render=1 ;;
+    --digest) digest=1 ;;
     --seen) rargs+=(--seen) ;;
     --running|--ask) [ $# -ge 2 ] || usage; rargs+=("$1" "$2"); shift ;;
-    *) usage ;;
+    -*) usage ;;
+    *) [ "$view" = arc ] && [ -z "$target" ] || usage; target=$1 ;;
   esac
   shift
 done
+self=$(readlink -f "${BASH_SOURCE[0]}")
+# overview: every project at once, read-only (overview.py; see overview.md). --digest reads the digest on stdin.
+if [ "$view" = overview ]; then
+  exec python3 -I "$(dirname "$self")/overview.py" "$([ "$digest" = 1 ] && echo digest || echo gather)"
+fi
+# arc <project>: the project by name from the overview's list, from any folder.
+if [ -n "$target" ]; then
+  dir=$(python3 -I "$(dirname "$self")/overview.py" resolve "$target") || exit 2
+  cd "$dir" || exit 1
+fi
 if [ "$render" = 1 ]; then
-  self=$(readlink -f "${BASH_SOURCE[0]}")
   "$self" "$view" | python3 -I "$(dirname "$self")/render.py" "$view" ${rargs[@]+"${rargs[@]}"}
   exit "${PIPESTATUS[1]}"
 fi
