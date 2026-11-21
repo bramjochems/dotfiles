@@ -30,6 +30,8 @@ From a plain shell, `gather.sh overview` refreshes the list and keeps the last d
 
 ```
 - **<name>** · <active | maintenance> · <your last message there> · <working towards> · <attention> · you <7 d>/<4 wk> h · agents <7 d>/<4 wk> h
+Now waves: <N> across <n> projects[ · **above 8: too much in flight**]
+- **<name>**[ (<n> in Now, cap <c>)]: <wave> <closed>/<total>[ CLOSE DUE]; … · issue states as of <when>
 Other (not a project): <folders> · <n> sessions · last <when> · <hours>
 Quiet (<n>: declared maintenance, or nothing in 4 weeks)
 - **<name>** · <mode> · last <commit | session> <when>
@@ -43,6 +45,11 @@ Quiet (<n>: declared maintenance, or nothing in 4 weeks)
 - **Attention**, at most one, first that applies: the inbox (`waiting.md`) count; red on main per the last
   `now.md`/`arc.md` (with its date, since the overview does not ask GitHub); `standing: N`, the items in the Status
   file's waiting-on-the-owner section; uncommitted files in the checkouts.
+- **Now waves** come from `waves.py` per project, offline: plans and ROADMAP from the files, issue states from the
+  cache the project's last `/status now` or `arc` left in its `.status/` (hence "as of"). Progress is closed of
+  listed issues; `CLOSE DUE` when all are closed or the plan is unchanged in git for 14 days. The total counts every
+  project's Now and is flagged above 8. No project with a `## Now` section: one line saying so. The digest facts carry
+  each project's Now waves and its first waves attention items, for **Left off**.
 - **Hours** from transcript timestamps: gaps under 15 minutes count as active, longer gaps not at all. *You*: the gaps
   between your own typed messages, merged across the project's sessions; *agents*: between assistant and tool events
   in the sessions and their subagents, merged (wall clock with an agent at work, so parallel agents do not add up).

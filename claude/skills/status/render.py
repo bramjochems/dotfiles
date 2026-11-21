@@ -599,6 +599,13 @@ def render_now(secs, args):
             B(f"+{len(decided) - 5} more (decided.md)")
         B("")
 
+    # ---- waves: attention items only (waves.py)
+    wv = [l.strip() for l in body(secs, "waves") if l.strip()]
+    if wv:
+        B("## Waves")
+        out.extend(f"- {cut(l, 150)}" for l in wv)
+        B("")
+
     # ---- running
     B("## Running")
     if not running_items:
@@ -682,6 +689,10 @@ def render_arc(raw, secs):
         out.append("open PRs by effort (status file, then title refs and first word; plans not searched at arc):")
         for name, prs in Grouper(efforts, {}, checkout).group(people):
             out.append(f"  {name}: " + "; ".join(f"{p.name(50)} {p.checks}" for p in prs))
+    wv = [l for l in body(secs, "waves") if l.strip()]
+    if wv and (kv(proj, "level") == "full" or not any(l.startswith("No waves yet") for l in wv)):
+        out.append("Waves block (waves.py; put it under the heading ## Waves as it is, after Later):")
+        out += [f"  {l}" for l in wv[1:]]
     if "repo none" in proj:
         sys.stdout.write("\n".join(out) + "\n")
         return

@@ -141,6 +141,9 @@ if [ "$level" = full ]; then
   status_file=$(printf '%s' "$status_raw" | first_code)
   [ -f "$status_file" ] || status_file=""
 fi
+# Waves (waves.py, next to this script): one `gh issue list` of its own, in parallel; it caches the issue
+# states in the state dir for the overview and the SessionStart hook. now: attention items only; arc: the block.
+python3 -I "$(dirname "$self")/waves.py" "$root" --cache $([ "$view" = now ] && echo --attention) > "$tmp/waves" 2>/dev/null &
 declared=""
 [ -n "$status_file" ] && declared=$(awk 'NR==1 && $0!="---"{exit} NR>1 && /^---/{exit} /^mode:/{print $2}' "$status_file")
 
@@ -548,6 +551,14 @@ if [ "$view" = arc ]; then
     fi
   fi
 fi
+
+# ---------------------------------------------------------------- waves (waves.py, started above)
+if [ "$view" = now ]; then
+  echo; echo "## waves (attention items from waves.py: close due, Now above the cap, plans off the ROADMAP; none: nothing)"
+else
+  echo; echo "## waves (waves.py: Now with progress, Next/Later counts, attention)"
+fi
+cat "$tmp/waves" 2>/dev/null
 
 # ---------------------------------------------------------------- left for later (written by /wrap)
 echo; echo "## left-for-later ($state_dir/next.md; handoff.md is fresh when written at or after the newest earlier session's last activity, 10 min slack)"

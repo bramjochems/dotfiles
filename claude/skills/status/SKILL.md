@@ -35,7 +35,7 @@ the view: never render or repeat it in the chat, and no Read, grep or other call
 **Read-only toward the repo and GitHub.** No commits, no doc edits (not even STATUS), no GitHub writes. The gather
 script runs one `git fetch` (remote-tracking refs only). The only writes are in the state dir `.status/` in the
 main checkout, which git ignores through `.git/info/exclude`: `now.md`, `arc.md`, `waiting.md`, `decided.md`,
-`seen`. When the view shows something wrong in the docs (STATUS stale, a ROADMAP row that disagrees), say so in one
+`seen`, `waves-issues.json`. When the view shows something wrong in the docs (STATUS stale, a ROADMAP row that disagrees), say so in one
 line under the view; fixing it is separate work.
 
 ## How the project is read
@@ -60,7 +60,7 @@ Nothing here is project-specific. The gather script works out, from the folder y
 Gather command, from anywhere inside the project, with the view:
 
 ```bash
-~/.claude/skills/status/gather.sh now --render   # ~2 s: one fetch, one gh call, local facts; renders now.md
+~/.claude/skills/status/gather.sh now --render   # ~2 s: one fetch, two gh calls (runs; waves' issues), local facts; renders now.md
 ~/.claude/skills/status/gather.sh arc --render   # ~5 s: PRs, prod lag, issues, worktrees, plans, roadmap,
                                                  # plus pre-rendered parts (efforts, PRs by effort, Maintenance)
 ~/.claude/skills/status/gather.sh now            # the raw facts only, as sections
@@ -283,6 +283,9 @@ Standing (STATUS): <short names, semicolon-separated>
 ## Decided for you (last 24h) · veto by saying which
 - HH:MM <Effort>: <what was chosen>
 
+## Waves
+- Close due: <wave> (<all N issues closed | plan unchanged for N days>) | Now holds <n> waves, cap <c> | <n> proposed/active plans with no ROADMAP line: <names>
+
 ## Running
 **This session**
 - <--running items>
@@ -318,6 +321,8 @@ Other view: /status arc
   (decided.md)`. Leave the block out when it is empty.
 - **Left for later** is `next.md` (see /wrap), first four items and a count; the handoff line shows only while
   `handoff.md` was written at or after the newest earlier session's last activity (10 minutes slack).
+- **Waves** is `waves.py --attention` (next to this script), one line per item: close due, Now above the cap, a Now
+  wave without a plan, listed issues that don't exist, plans off the ROADMAP. Left out when there is none.
 - **Running** is the `--running` items, the in-progress runs, and the other sessions, in that order. The session
   running `/status` is never under Other sessions.
 - **Done today:** PRs merged since midnight grouped by effort (or, without GitHub, today's commits in a few
@@ -348,6 +353,9 @@ The script writes `now.md` and (with `--seen`) `seen`, and prunes `decided.md`; 
 ## Later
 <N> efforts: <name>; <name>; …
 
+## Waves
+<the pre-rendered Waves block, as it is>
+
 ## Drifting
 <N> efforts marked active on the ROADMAP but in neither Now nor Next: <name (plan updated date)>; …
 
@@ -367,6 +375,12 @@ Inbox: <n> of 7 → /status now
   A block with no source is left out.
 - **Progress** is counted from the plan: slices or steps merged of the total the plan lists, naming the open ones.
   When a plan has no countable list, give the last milestone in under ten words. Never a percentage.
+- **Waves** comes from `waves.py` (next to this script; `gather.sh arc` runs it and pre-renders the block): the
+  ROADMAP's `## Now` waves with progress (closed of listed issues, from the plan's `issues: [...]`) and done-criterion,
+  the Next/Later counts, and what needs attention (close due, Now above the bindings' Now cap, plans off the ROADMAP).
+  Until the ROADMAP has Now/Next/Later sections it says so in one line; keep that line. `waves.py [path]` alone is the
+  same report from a shell (`--json` for scripts); it also caches the issue states in the state dir for the overview
+  and the SessionStart hook, which run no gh.
 - **Drifting** is the roadmap rows whose status says Active but that are in neither Now nor Next. It is a signal for
   the owner; the skill changes no status.
 - **Pipeline** under an effort: its open PRs, then its flagged issues, then a count of the rest. Flagged issues that
@@ -422,6 +436,7 @@ writes them; for `arc`, write arc.md, any inbox or decided changes and `seen` in
 | `decided.md` | Decide and notify; step 1.4 prunes | the decisions |
 | `seen` | every `/status` run (`--seen`), after the view is shown | the current time, `date -Iseconds` |
 | `next.md` | `/wrap` | follow-ups for later, at most 10 |
+| `waves-issues.json` | `waves.py --cache` (run by `gather.sh`) | the issue states of its last `gh issue list`, for the overview and the SessionStart hook |
 | `handoff.md`, `handoff.prev.md` | `/wrap`, when work is half-finished | the resume point for the next agent |
 
 Line 1 of `now.md` and `arc.md` is a machine-readable HTML comment (the cross-project overview reads `updated=`,

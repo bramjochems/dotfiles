@@ -108,5 +108,14 @@ if [ "$in_git" = 1 ]; then
   fi
 fi
 
+# ---------------------------------------------------------------- 3. waves (offline: issue states cached by /status)
+# One line, only when a wave needs attention (close due, Now above the cap, plans off the ROADMAP). Only where
+# the project has a plans dir to read, so a plain folder never starts Python.
+waves_py="$HOME/.claude/skills/status/waves.py"; wr=${here:-$PWD}
+if [ -f "$waves_py" ] && { [ -f "$wr/docs/agentic-workflow.bindings.md" ] || [ -d "$wr/.planning" ] || [ -d "$wr/docs/planning" ] || [ -d "$wr/docs/plans" ]; }; then
+  w=$(python3 -I "$waves_py" "$wr" --line --offline)
+  [ -n "$w" ] && out+=("$w")
+fi
+
 [ ${#out[@]} -gt 0 ] && printf '%s\n' "${out[@]}"
 exit 0

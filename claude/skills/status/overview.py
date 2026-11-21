@@ -30,6 +30,7 @@ HERE = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, HERE)
 sys.dont_write_bytecode = True  # no __pycache__ in the skill dir
 import render as R  # noqa: E402  (parse_status, strip_md, cut, first_clause, when, write_atomic, read_lines)
+import waves as W  # noqa: E402  (collect: the waves, offline, from each project's cached issue states)
 
 HOME = os.path.expanduser("~")
 TRANSCRIPTS = os.path.join(HOME, ".claude", "projects")
@@ -50,6 +51,7 @@ BUMP = re.compile(r"^(build|chore)\(deps[^)]*\)|^bump |^\[bot\]|dependabot|renov
 STATEISH = re.compile(r"^(current state|current|state|status|where we are|where things stand)\b", re.I)
 ELSEWHERE = re.compile(r"with someone|blocked on|on hold", re.I)
 CAP_COMMITS, CAP_COMMITS_DOCS, CAP_SESSIONS, CAP_NEXT, CAP_ROWS = 15, 10, 8, 5, 8
+NOW_TOTAL_FLAG = 8  # Now waves across all projects above this: too much in flight
 
 
 # ------------------------------------------------------------------ config
@@ -543,7 +545,7 @@ class Project:
         self.path, self.root, self.kind = path, root, kind
         self.name = os.path.basename(path) if path == root else os.path.relpath(path, root)
         self.sessions, self.owner, self.agent = [], [], []
-        self.git, self.docs, self.state = {}, {}, {}
+        self.git, self.docs, self.state, self.waves = {}, {}, {}, {}
 
     # facts
     def last_owner(self):
@@ -702,6 +704,10 @@ def build(lite=False):
             prj.git = git_facts(prj.path, excludes)
         prj.docs = doc_facts(prj.path)
         prj.state = state_facts(prj.path)
+        try:
+            prj.waves = W.collect(prj.path, offline=True)
+        except Exception as e:  # one odd project must not break the overview
+            prj.waves = {"now": [], "attention": [], "issues_source": f"waves failed: {e}"}
         return prj
     with ThreadPoolExecutor(16) as ex:
         list(ex.map(facts, projects.values()))
@@ -727,6 +733,7 @@ def render_list(projects, others):
             bits.append(a)
         bits.append(p.time_str())
         out.append("- " + " · ".join(bits))
+    out += render_waves(live + quiet)
     if others:
         o = sorted(others.values(), key=lambda p: -p.last_activity())
         names = "; ".join(k for k, _ in sorted(others.items(), key=lambda kv: -kv[1].last_activity()))
@@ -744,6 +751,33 @@ def render_list(projects, others):
             out.append(f"- **{p.name}** · {p.mode()[0]} · last {what} {stamp(last)}" if last
                        else f"- **{p.name}** · {p.mode()[0]} · nothing in 90 d")
     return out
+
+
+def wave_bits(w):
+    prog = f"{w['closed']}/{w['closed'] + w['open']}" if w.get("closed") is not None and w["closed"] + w["open"] else \
+        f"{len(w['issues'])} issues" if w.get("issues") else "no issues"
+    due = " CLOSE DUE" if w.get("close_due") else ""
+    return f"{R.cut(w['name'], 40)} {prog}{due}"
+
+
+def render_waves(projects):
+    """Per project its Now waves (progress from the cached issue states, close-due flags); the total."""
+    rows, total = [], 0
+    for p in projects:
+        now = p.waves.get("now") or []
+        if not now:
+            continue
+        total += len(now)
+        cap = p.waves.get("cap", W.DEFAULT_CAP)
+        over = f" ({len(now)} in Now, cap {cap})" if len(now) > cap else ""
+        src = p.waves.get("issues_source", "")
+        at = R.parse_iso(src.replace("cached ", "").replace(" ", "T")) if src.startswith("cached") else None
+        asof = f" · issue states as of {R.when(at, True)}" if at else " · issue states unknown (run /status there)"
+        rows.append(f"- **{p.name}**{over}: " + "; ".join(wave_bits(w) for w in now) + asof)
+    if not rows:
+        return ["", "Now waves: none yet (no project's ROADMAP has a ## Now section with waves)"]
+    flag = f" · **above {NOW_TOTAL_FLAG}: too much in flight**" if total > NOW_TOTAL_FLAG else ""
+    return ["", f"Now waves: {total} across {len(rows)} project{'' if len(rows) == 1 else 's'}{flag}"] + rows
 
 
 # ------------------------------------------------------------------ facts for the digest
@@ -817,6 +851,11 @@ def render_facts(projects, others, excludes):
             lo += [f"  {R.cut(R.inbox_text(l), 150)}" for l in s["inbox"]]
         if s["red"]:
             lo.append(f"red on main per the last now/arc view ({R.when(s['red_at'], True)}): {s['red']}")
+        wv = p.waves or {}
+        if wv.get("now"):
+            out.append("waves in Now: " + "; ".join(wave_bits(w) for w in wv["now"]))
+        for a in (wv.get("attention") or [])[:3]:
+            lo.append(f"waves: {a['text']}")
         out.append("left off:")
         out += [f"  {l}" for l in lo] or ["  nothing recorded"]
         out.append(f"time: {p.time_str()} · based-on candidates: {', '.join(dict.fromkeys(src)) or 'nothing'}")
