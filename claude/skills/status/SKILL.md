@@ -125,7 +125,11 @@ text** (the link's URL not counted). Detail lives behind the link (PR, plan, scr
 **Asking is a procedure, in this order:**
 
 1. Write the line to `waiting.md` (append; the file is per project and shared by sessions).
-2. Ask in the chat: the same question, options and recommendation, plus whatever detail the owner needs.
+2. Ask in the chat as one complete block, never a digest line or a table row:
+   `**Decide: <one sentence in domain words>**` · Today / Affects · (a) and (b): what each does, to what, its cost,
+   which you recommend and why · Undo: <how, or that it can't be> · If you don't answer: <the default, from when> ·
+   Why you. At most three per message; never "all recommendations is a fine answer". The inbox line is only the
+   index: when you ask again, send the whole block again.
 3. When he answers, remove the line, then act. A partial answer rewrites the line to what is still open.
 
 Step 1 is `gather.sh now --render --ask "<line without date and session>"` (it adds both) when you are about to
