@@ -20,7 +20,9 @@ A branch is deleted only if ALL of these hold:
      directory in it is ours to delete. Then `git worktree remove` (never
      --force), then the branch.
   4. In a repo with a live Claude session: no commit, ref update or worktree
-     creation for it in the last --hours (default 12).
+     creation for it in the last --hours (default 12), unless 2(b)'s exact
+     match holds (a merged PR whose head is the local tip): a session's own
+     just-merged branch may go, a fresh branch or placeholder may not.
 
 Case (a) deletes with `git branch -d`; case (b) with `git branch -D` right
 after re-checking that the tip still equals the PR head. Never touches the
@@ -342,21 +344,29 @@ class Repo:
             if wt and wt["main"]:
                 self.keep(name, None, "main-checkout", "checked out in the main checkout")
                 continue
+            recent = None
             if self.session_live:
                 act = max(b["cdate"], self.last_activity(name, wt))
                 if now - act < self.hours * 3600:
                     who = "unknown (claude agents failed)" if self.sessions is None else \
                         ", ".join(s["name"] for s in self.sessions) or "a live lock holder"
-                    self.keep(name, wt, "recent-live-session",
-                              f"touched {(now - act) / 3600:.1f}h ago; live session in repo: {who}")
-                    continue
-            candidates.append((b, wt))
+                    recent = f"touched {(now - act) / 3600:.1f}h ago; live session in repo: {who}"
+            candidates.append((b, wt, recent))
 
         with ThreadPoolExecutor(8) as ex:
             pr_lists = list(ex.map(lambda c: self.prs(c[0]["name"]), candidates))
 
-        for (b, wt), prs in zip(candidates, pr_lists):
+        for (b, wt, recent), prs in zip(candidates, pr_lists):
             name, sha = b["name"], b["sha"]
+            # Recent activity in a repo with a live session keeps a branch, unless a merged PR
+            # into the default branch has exactly this tip as its head: that work is provably
+            # done (a fresh branch or a placeholder never has one), so the caller's own
+            # just-merged branch can go. Worktree checks below still apply.
+            if recent and not (prs and any(p["state"] == "MERGED" and p["baseRefName"] == self.default
+                                            and p["headRefOid"] == sha for p in prs)
+                               and not any(p["state"] == "OPEN" for p in prs)):
+                self.keep(name, wt, "recent-live-session", recent)
+                continue
             if prs is None:
                 self.keep(name, wt, "gh-unavailable", "couldn't read PRs from gh (open PR can't be ruled out)")
                 continue
