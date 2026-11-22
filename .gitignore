@@ -29,3 +29,4 @@ gitui.log
 # Optional: Python virtual envs, Node modules, etc.
 venv/
 node_modules/
+scripts/tests/work/
