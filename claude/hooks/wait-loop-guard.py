@@ -31,6 +31,21 @@ LIMIT = re.compile(
 )
 
 
+HEREDOC = re.compile(r"<<-?\s*(['\"])(\w+)\1[^\n]*\n(.*?)\n\s*\2\b", re.S)
+SHELL_FED = re.compile(r"\b(bash|sh|zsh|ssh|sudo|eval|source)\b[^\n|;&]*$")
+
+
+def strip_text_heredocs(cmd: str) -> str:
+    """Drop the body of a quoted heredoc (<<'EOF') used as text, e.g. an issue body.
+    Keep it when the heredoc feeds a shell (`bash <<'EOF'`), since that body runs."""
+    def repl(m: re.Match) -> str:
+        line_start = cmd.rfind("\n", 0, m.start()) + 1
+        if SHELL_FED.search(cmd[line_start:m.start()]):
+            return m.group(0)
+        return "<<TEXT\nTEXT"
+    return HEREDOC.sub(repl, cmd)
+
+
 def deny(reason: str) -> None:
     print(json.dumps({
         "hookSpecificOutput": {
@@ -48,6 +63,7 @@ def main() -> None:
     except Exception:
         return
     cmd = (data.get("tool_input") or {}).get("command") or ""
+    cmd = strip_text_heredocs(cmd)
     if not LOOP.search(cmd):
         return
     for m in PGREP_F.finditer(cmd):
