@@ -531,6 +531,10 @@ def render_now(secs, args):
       f"running={len(running_items)} waiting={len(waiting)} inbox_full={'yes' if len(waiting) >= MAX_INBOX else 'no'} -->")
     B(f"# {project} · now · {stamp}")
     B("")
+    alarms = [l.strip() for l in body(secs, "alarms") if l.strip()]
+    if alarms:
+        B(f"**{alarms[0]}**")
+        B("")
     if len(waiting) >= MAX_INBOX:
         B(f"**INBOX FULL ({len(waiting)} of {MAX_INBOX}): no new work that needs you; answer one to free a slot.**")
         B("")

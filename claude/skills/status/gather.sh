@@ -144,6 +144,10 @@ fi
 # Waves (waves.py, next to this script): one `gh issue list` of its own, in parallel; it caches the issue
 # states in the state dir for the overview and the SessionStart hook. now: attention items only; arc: the block.
 python3 -I "$(dirname "$self")/waves.py" "$root" --cache $([ "$view" = now ] && echo --attention) > "$tmp/waves" 2>/dev/null &
+# Open alarms (any project with an `alarm` label; one issue per failing scheduled workflow): one line,
+# shown first. Silent when none is open, the label is missing or gh fails.
+[ -n "$R" ] && gh_ issue list -R "$R" --label alarm --state open --limit 100 --json title,body,createdAt \
+  -q "$(cat "$(dirname "$self")/alarm-line.jq")" > "$tmp/alarms" &
 declared=""
 [ -n "$status_file" ] && declared=$(awk 'NR==1 && $0!="---"{exit} NR>1 && /^---/{exit} /^mode:/{print $2}' "$status_file")
 
@@ -329,6 +333,7 @@ fi
 fetch_note="fetched just now"
 if [ -n "$fetch_pid" ]; then wait "$fetch_pid" 2>/dev/null || fetch_note="fetch failed or timed out: origin may be stale"; fi
 wait  # the runs list, and in arc the parallel sections
+echo; echo "## alarms"; cat "$tmp/alarms" 2>/dev/null
 runs=$(cat "$tmp/runs.json" 2>/dev/null); runs_ok=1
 printf '%s' "$runs" | jq -e 'type == "array"' >/dev/null 2>&1 || runs_ok=0
 # Deploy workflows: name matches the deploy regex, or "infra" without being a CI/build/check job.
