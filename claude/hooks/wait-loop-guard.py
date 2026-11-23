@@ -7,11 +7,13 @@ never ended. Two kinds are refused:
    line contains <text>, so pgrep finds itself and the loop never ends. A bracket pattern
    ('[j]ust test-changed') cannot match itself.
 2. A while/until loop that sleeps while waiting for a condition and has no limit on the whole
-   loop. Limits: `timeout N` around the loop, $SECONDS or `date +%s`, or a counter that the loop
-   increments. A per-attempt `timeout` inside the loop is not a limit.
+   loop. Limits: `timeout N` on the shell that runs the loop (`timeout 900 bash -c '...'`),
+   $SECONDS or `date +%s`, or a counter the loop increments and compares. A per-attempt
+   `timeout` inside the loop, or one on an earlier command, is not a limit.
 
 Passes: deliberate forever loops (`while true` whose body has no break/exit/return), waits on
-your own job (`while kill -0 $pid`), and loops that do not sleep. Quoted strings (commit
+your own job (`while kill -0 $pid`), list walks (`while read`, loops that `shift`), and loops
+that do not sleep. Quoted strings (commit
 messages, PR bodies, python -c code) and heredoc bodies are text, not shell, unless they are
 fed to a shell (`bash -c '...'`, `ssh host '...'`, `bash <<'EOF'`), in which case they are
 checked too.
@@ -34,6 +36,10 @@ ADVICE = (
 )
 
 SHELL_WORD = r"(?<![\w./-])(?:bash|sh|zsh|dash|ssh|sudo|eval|source)(?![\w./-])"
+_PREFIX = r"\s*(?:(?:sudo|env|nice|nohup)\s+(?:-\S+\s+)*|timeout\s+(?:-\S+\s+)*\S+\s+)*"
+FED_CMD = re.compile(_PREFIX + r"(?:bash|sh|zsh|dash|eval|source|ssh)(?![\w./-])")
+PIPED_TO_SHELL = re.compile(r"\|\s*" + _PREFIX + r"(?:bash|sh|zsh|dash)(?![\w./-])")
+TIMEOUT_THEN_SHELL = re.compile(r"\btimeout\s+(?:-\S+\s+)*\S+\s+(?:\S+\s+)*?(?:bash|sh|zsh|dash|ssh)(?:\s+\S+)*\s+$|\btimeout\s+(?:-\S+\s+)*\S+\s+(?:bash|sh|zsh|dash)\s+(?:-\S+\s+)*-\w*c\s*$")
 KEYWORD = re.compile(r"(?<![\w$./-])(while|until|for|select|do|done)(?![\w./-])")
 CMD_START = set(";&|({\n")
 LEAD_WORDS = ("do", "then", "else", "!", "time")
@@ -45,15 +51,18 @@ def strip_heredocs(text):
     lines = text.split("\n")
     out, fed = [], []
     i = 0
-    marker = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_]\w*)\1")
+    marker = re.compile(r"(?<![\w)<])<<-?\s*(['\"]?)([A-Za-z_]\w*)\1")
     while i < len(lines):
         line = lines[i]
         out.append(line)
-        delims = [m.group(2) for m in marker.finditer(line)]
+        found = list(marker.finditer(line))
+        delims = [m.group(2) for m in found]
         i += 1
         if not delims:
             continue
-        shell_fed = re.search(SHELL_WORD, line) is not None
+        seg = re.split(r"[|;&(]", line[: found[0].start()])[-1]
+        shell_fed = bool(FED_CMD.match(seg)) or bool(PIPED_TO_SHELL.search(line[found[-1].end():]))
+        heredoc_timeout = bool(re.match(r"\s*timeout\s", seg))
         for d in delims:
             body = []
             while i < len(lines) and lines[i].strip() != d:
@@ -64,7 +73,7 @@ def strip_heredocs(text):
             out.extend("" for _ in body)
             out.append("")
             if shell_fed:
-                fed.append("\n".join(body))
+                fed.append(("\n".join(body), heredoc_timeout))
     return "\n".join(out), fed
 
 
@@ -135,11 +144,12 @@ def loops(s):
 
 SLEEP = re.compile(r"(?<![\w./$-])sleep\s")
 COUNTER = re.compile(
-    r"\(\(\s*\w+\s*(\+\+|--|\+=|-=)|\b\w+\s*(\+\+|--)|\b\w+=\$\(\(\s*\$?\w+\s*[-+]|\blet\s|\b\w+\+=\d"
+    r"\(\(\s*[A-Za-z_]\w*\s*(\+\+|--|\+=|-=)|(?<![\w-])[A-Za-z_]\w*(\+\+|--)(?![\w-])"
+    r"|\b[A-Za-z_]\w*=\$\(\(\s*\$?[A-Za-z_]\w*\s*[-+]|\blet\s|\b[A-Za-z_]\w*\+=\d"
 )
+CAP = re.compile(r"\s-(lt|le|gt|ge|eq|ne)\s|\(\([^)]*[<>]|\[\s*\S+\s*!?=\s*\S+\s*\]")
 DEADLINE = re.compile(r"\$\{?SECONDS\b|\bSECONDS\b|date\s+\+%s")
-TIMEOUT_WRAP = re.compile(r"(?<![\w-])timeout\s+(-\S+\s+)*\d")
-PGREP_F = re.compile(r"\bpgrep\s+(?:-\w+\s+)*-\w*f")
+PGREP_F = re.compile(r"\bpgrep\s+(?:-\S+\s+)*(?:-[a-zA-Z]*f|--full)")
 
 
 def check(raw, outer_timeout=False, depth=0):
@@ -147,8 +157,8 @@ def check(raw, outer_timeout=False, depth=0):
     if depth > 3:
         return None
     text, fed = strip_heredocs(raw)
-    for body in fed:
-        reason = check(body, outer_timeout or bool(TIMEOUT_WRAP.search(text)), depth + 1)
+    for body, has_timeout in fed:
+        reason = check(body, outer_timeout or has_timeout, depth + 1)
         if reason:
             return reason
     s, spans = mask_quotes(text)
@@ -157,7 +167,7 @@ def check(raw, outer_timeout=False, depth=0):
     for a, b in spans:
         before = s[max(0, a - 80) : a - 1]
         if re.search(SHELL_WORD + r"(\s+\S+)*\s+-\w*c\s*$", before) or re.search(r"\bssh\s+(\S+\s+)*$", before):
-            reason = check(text[a:b], outer_timeout or bool(TIMEOUT_WRAP.search(s[:a])), depth + 1)
+            reason = check(text[a:b], outer_timeout or bool(TIMEOUT_THEN_SHELL.search(before + " ")), depth + 1)
             if reason:
                 return reason
 
@@ -174,12 +184,13 @@ def check(raw, outer_timeout=False, depth=0):
                 continue  # meant to run until someone stops it
         if re.search(r"\bkill\s+-0\b", cond):
             continue  # waiting on your own job; no worse than `wait $pid`
+        if re.match(r"\s*(IFS=\S*\s+)?read\b", cond) or re.search(r"\bshift\b", body):
+            continue  # walks a list (rate-limited), ends when the input runs out
         loop_text = s[cs:be]
         limited = (
             outer_timeout
-            or TIMEOUT_WRAP.search(s[:start])
             or DEADLINE.search(loop_text)
-            or COUNTER.search(loop_text)
+            or (COUNTER.search(loop_text) and CAP.search(loop_text))
         )
         if not limited:
             return ("Blocked: a loop that waits for a condition with no limit on the whole loop "
